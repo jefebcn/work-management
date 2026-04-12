@@ -7,13 +7,8 @@ export default function NRVSummaryPanel() {
 
   if (!computed || !computed.rows || computed.rows.length === 0) return null
 
-  // Only show rows with actual nutrients (skip excipients without NRV)
-  const nutrientRows = computed.rows.filter(r => {
-    const rm = rawMaterials.find(m => m.id === r.rawMaterialId)
-    return rm && (rm.nrvReference > 0 || rm.maxLimitMg > 0)
-  })
-
-  if (nutrientRows.length === 0) return null
+  // All ingredients, sorted by daily contribution descending
+  const sortedRows = [...computed.rows].sort((a, b) => b.dailyContribution - a.dailyContribution)
 
   return (
     <div className="bg-galenic-surface border border-galenic-border">
@@ -35,7 +30,7 @@ export default function NRVSummaryPanel() {
             </tr>
           </thead>
           <tbody>
-            {nutrientRows.map(r => {
+            {sortedRows.map(r => {
               const rm = rawMaterials.find(m => m.id === r.rawMaterialId)
               if (!rm) return null
 
