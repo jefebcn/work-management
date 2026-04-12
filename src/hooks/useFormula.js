@@ -57,6 +57,8 @@ export function useFormula(rawMaterials, packaging) {
       targetWeightUnit: 'mg',
       ingredients: [],
       packagingId: null,
+      qtyPerPackMg: 0,
+      qtyPerPackUnit: 'g',
       pH: null,
       brix: null,
       status: 'draft',
