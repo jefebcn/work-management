@@ -145,7 +145,7 @@ export default function RawMaterialForm({ initial, onSubmit, onCancel }) {
           value={form.maxLimitMg}
           onChange={e => set('maxLimitMg', e.target.value)}
           error={errors.maxLimitMg}
-          hint="Limite regolatorio per dose (0 = nessun limite)"
+          hint="Limite regolatorio giornaliero (0 = nessun limite)"
           placeholder="0"
         />
         <Input
