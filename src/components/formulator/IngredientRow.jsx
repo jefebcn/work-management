@@ -102,33 +102,47 @@ export default function IngredientRow({ computedRow }) {
       <td className="px-4 py-3 tabular-nums text-center">
         <div className="flex flex-col items-center gap-1">
           {inputMode === 'contribution' ? (
-            <div className="flex items-center gap-1">
-              <input
-                type="number"
-                step="any"
-                min="0"
-                defaultValue={computedRow.realNutrientContribution.toFixed(4)}
-                key={computedRow.realNutrientContribution.toFixed(4)} // re-mount when changed externally
-                onChange={handleContributionChange}
-                disabled={!canBackCalculate}
-                className={[
-                  'w-24 border text-galenic-primary font-mono text-sm px-2 py-1.5',
-                  'outline-none tabular-nums transition-colors',
-                  canBackCalculate
-                    ? 'bg-galenic-elevated border-galenic-accent focus:border-galenic-accent'
-                    : 'bg-galenic-base border-galenic-border text-galenic-muted cursor-not-allowed opacity-50',
-                ].join(' ')}
-              />
-              <span className="text-xs text-galenic-muted font-mono">mg</span>
+            <div className="flex flex-col items-center gap-0.5">
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  step="any"
+                  min="0"
+                  defaultValue={computedRow.realNutrientContribution.toFixed(4)}
+                  key={computedRow.realNutrientContribution.toFixed(4)} // re-mount when changed externally
+                  onChange={handleContributionChange}
+                  disabled={!canBackCalculate}
+                  className={[
+                    'w-24 border text-galenic-primary font-mono text-sm px-2 py-1.5',
+                    'outline-none tabular-nums transition-colors',
+                    canBackCalculate
+                      ? 'bg-galenic-elevated border-galenic-accent focus:border-galenic-accent'
+                      : 'bg-galenic-base border-galenic-border text-galenic-muted cursor-not-allowed opacity-50',
+                  ].join(' ')}
+                />
+                <span className="text-xs text-galenic-muted font-mono">mg</span>
+              </div>
+              {computedRow.dailyContribution !== computedRow.realNutrientContribution && (
+                <div className={`text-xs font-mono tabular-nums ${computedRow.exceedsMaxLimit ? 'text-galenic-danger font-semibold' : 'text-galenic-muted'}`}>
+                  {computedRow.dailyContribution.toFixed(3)} mg/die
+                </div>
+              )}
             </div>
           ) : (
-            <div className={`font-mono text-sm ${computedRow.exceedsMaxLimit ? 'text-galenic-danger font-semibold' : 'text-galenic-primary'}`}>
-              {computedRow.realNutrientContribution.toFixed(3)} mg
+            <div className="flex flex-col items-center gap-0.5">
+              <div className={`font-mono text-sm tabular-nums ${computedRow.exceedsMaxLimit ? 'text-galenic-danger font-semibold' : 'text-galenic-primary'}`}>
+                {computedRow.dailyContribution.toFixed(3)} mg/die
+              </div>
+              {computedRow.dailyContribution !== computedRow.realNutrientContribution && (
+                <div className="text-xs font-mono text-galenic-muted tabular-nums opacity-70">
+                  {computedRow.realNutrientContribution.toFixed(3)} mg/dose
+                </div>
+              )}
             </div>
           )}
           {computedRow.exceedsMaxLimit && (
             <div className="text-xs text-galenic-danger">
-              &gt; {rm.maxLimitMg} mg max
+              &gt; {rm.maxLimitMg} mg/die max
             </div>
           )}
         </div>

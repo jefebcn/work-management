@@ -27,7 +27,7 @@ export default function FormulaHeader() {
 
   return (
     <div className="bg-galenic-surface border border-galenic-border p-5">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
         {/* Formula name */}
         <div className="md:col-span-2">
           <Input
@@ -70,6 +70,17 @@ export default function FormulaHeader() {
             containerClassName="w-20"
           />
         </div>
+
+        {/* Daily doses */}
+        <Input
+          label="Dosi/die"
+          type="number"
+          step="1"
+          min="1"
+          value={activeFormula.dosiAlGiorno ?? 1}
+          onChange={e => setFormulaField('dosiAlGiorno', Math.max(1, parseInt(e.target.value) || 1))}
+          hint="N. dosi giornaliere"
+        />
       </div>
     </div>
   )

@@ -59,6 +59,7 @@ export function useFormula(rawMaterials, packaging) {
       packagingId: null,
       qtyPerPackMg: 0,
       qtyPerPackUnit: 'g',
+      dosiAlGiorno: 1,
       pH: null,
       brix: null,
       status: 'draft',

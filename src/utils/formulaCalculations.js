@@ -19,26 +19,31 @@ export function computeFillerAmount(targetWeightMg, nonFillerIngredients) {
  * @param {{ rowId, rawMaterialId, amountMg, isFiller }} ingredient
  * @param {{ purity, titration, maxLimitMg, nrvReference, pricePerKg }} rawMaterial
  * @param {number} targetWeightMg
+ * @param {number} dosiAlGiorno  — daily servings (default 1)
  * @returns {object} enriched row with all computed fields
  */
-export function computeIngredientRow(ingredient, rawMaterial, targetWeightMg) {
+export function computeIngredientRow(ingredient, rawMaterial, targetWeightMg, dosiAlGiorno = 1) {
   const amountMg = ingredient.amountMg || 0
 
   const percentOfTotal =
     targetWeightMg > 0 ? (amountMg / targetWeightMg) * 100 : 0
 
-  // Active nutrient in mg = dose × purity% × titration%
+  // Active nutrient per dose in mg = amountMg × purity% × titration%
   const realNutrientContribution =
     amountMg * ((rawMaterial.purity || 100) / 100) * ((rawMaterial.titration || 100) / 100)
 
+  // Daily active nutrient = per-dose contribution × doses/day
+  const dailyContribution = realNutrientContribution * (dosiAlGiorno || 1)
+
   const nrvPercent =
     rawMaterial.nrvReference > 0
-      ? (realNutrientContribution / rawMaterial.nrvReference) * 100
+      ? (dailyContribution / rawMaterial.nrvReference) * 100
       : null
 
+  // Limit check uses daily figure (regulatory limits are per day)
   const exceedsMaxLimit =
     rawMaterial.maxLimitMg > 0
-      ? realNutrientContribution > rawMaterial.maxLimitMg
+      ? dailyContribution > rawMaterial.maxLimitMg
       : false
 
   // Row cost contribution in EUR per formula batch
@@ -52,6 +57,7 @@ export function computeIngredientRow(ingredient, rawMaterial, targetWeightMg) {
     isFiller: ingredient.isFiller,
     percentOfTotal,
     realNutrientContribution,
+    dailyContribution,
     nrvPercent,
     exceedsMaxLimit,
     rowCost,
@@ -92,12 +98,14 @@ export function computeFormulaResults(formula, rawMaterials, packaging = []) {
     return ing
   })
 
+  const dosiAlGiorno = formula.dosiAlGiorno || 1
+
   // Compute per-row derived data (skip rows whose rawMaterial was deleted)
   const rows = resolvedIngredients
     .map(ing => {
       const rm = rmMap[ing.rawMaterialId]
       if (!rm) return null
-      return computeIngredientRow(ing, rm, formula.targetWeightMg)
+      return computeIngredientRow(ing, rm, formula.targetWeightMg, dosiAlGiorno)
     })
     .filter(Boolean)
 
@@ -132,7 +140,7 @@ export function computeFormulaResults(formula, rawMaterials, packaging = []) {
       warnings.push({
         type: 'MAX_LIMIT',
         rowId: r.rowId,
-        message: `${rm.name}: active nutrient ${r.realNutrientContribution.toFixed(2)} mg exceeds max limit ${rm.maxLimitMg} mg`,
+        message: `${rm.name}: apporto giornaliero ${r.dailyContribution.toFixed(2)} mg supera il limite ${rm.maxLimitMg} mg/die`,
       })
     }
   })

@@ -28,7 +28,7 @@ export default function NRVSummaryPanel() {
             <tr className="bg-galenic-elevated border-b border-galenic-border">
               <th className="px-4 py-2 text-left text-galenic-muted uppercase tracking-wider">Ingrediente</th>
               <th className="px-4 py-2 text-left text-galenic-muted uppercase tracking-wider">Nutriente Attivo</th>
-              <th className="px-4 py-2 text-center text-galenic-muted uppercase tracking-wider">Apporto Reale</th>
+              <th className="px-4 py-2 text-center text-galenic-muted uppercase tracking-wider">Apporto Giorn.</th>
               <th className="px-4 py-2 text-center text-galenic-muted uppercase tracking-wider">VNR %</th>
               <th className="px-4 py-2 text-center text-galenic-muted uppercase tracking-wider">Limite Max</th>
               <th className="px-4 py-2 text-center text-galenic-muted uppercase tracking-wider">Stato</th>
@@ -54,8 +54,15 @@ export default function NRVSummaryPanel() {
                 <tr key={r.rowId} className="border-b border-galenic-border hover:bg-galenic-elevated hover:bg-opacity-30">
                   <td className="px-4 py-2.5 text-galenic-primary">{rm.name}</td>
                   <td className="px-4 py-2.5 text-galenic-muted">{rm.activeNutrient || '—'}</td>
-                  <td className="px-4 py-2.5 text-center tabular-nums text-galenic-primary">
-                    {r.realNutrientContribution.toFixed(4)} mg
+                  <td className="px-4 py-2.5 text-center tabular-nums">
+                    <div className={`font-mono ${r.exceedsMaxLimit ? 'text-galenic-danger font-semibold' : 'text-galenic-primary'}`}>
+                      {r.dailyContribution.toFixed(4)} mg
+                    </div>
+                    {r.dailyContribution !== r.realNutrientContribution && (
+                      <div className="text-galenic-muted opacity-70 text-xs">
+                        {r.realNutrientContribution.toFixed(4)} /dose
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-2.5 text-center tabular-nums">
                     {r.nrvPercent !== null ? (
