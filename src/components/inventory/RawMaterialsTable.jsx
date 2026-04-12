@@ -72,6 +72,18 @@ export default function RawMaterialsTable({ rawMaterials, onEdit, onDelete }) {
       ),
     },
     {
+      key: 'titrationIn',
+      label: 'Titolato in',
+      className: 'text-center',
+      headerClassName: 'text-center',
+      render: row =>
+        row.activeNutrient ? (
+          <span className="text-galenic-primary text-xs font-mono">{row.activeNutrient}</span>
+        ) : (
+          <span className="text-galenic-muted text-xs">—</span>
+        ),
+    },
+    {
       key: 'maxLimitMg',
       label: 'Limite Max',
       className: 'tabular-nums text-center',
