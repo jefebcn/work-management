@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { AppProvider, useApp } from './context/AppContext.jsx'
+import { ThemeProvider } from './context/ThemeContext.jsx'
 import Sidebar from './components/layout/Sidebar.jsx'
 import TopBar from './components/layout/TopBar.jsx'
 import PageWrapper from './components/layout/PageWrapper.jsx'
@@ -45,8 +46,10 @@ function AppShell() {
 
 export default function App() {
   return (
-    <AppProvider>
-      <AppShell />
-    </AppProvider>
+    <ThemeProvider>
+      <AppProvider>
+        <AppShell />
+      </AppProvider>
+    </ThemeProvider>
   )
 }

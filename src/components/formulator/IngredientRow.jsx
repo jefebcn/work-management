@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { Trash2 } from 'lucide-react'
 import { useApp } from '../../context/AppContext.jsx'
 import Badge from '../ui/Badge.jsx'
-import Button from '../ui/Button.jsx'
 import FillerToggle from './FillerToggle.jsx'
 import { fromMg, toMg } from '../../utils/weightConversions.js'
 
@@ -12,7 +12,7 @@ import { fromMg, toMg } from '../../utils/weightConversions.js'
 //  [___] {unit}/dose  [___] mg/dose
 //  [___] {unit}/die   [___] mg/die
 
-export default function IngredientRow({ computedRow }) {
+export default function IngredientRow({ computedRow, rowIndex = 0 }) {
   const { rawMaterials, activeFormula, setIngredientAmount, removeIngredient } = useApp()
 
   const rm = rawMaterials.find(r => r.id === computedRow.rawMaterialId)
@@ -91,22 +91,20 @@ export default function IngredientRow({ computedRow }) {
   }
 
   const rowBg = computedRow.exceedsMaxLimit
-    ? 'bg-galenic-danger bg-opacity-5 border-l-2 border-galenic-danger'
-    : 'border-l-2 border-transparent'
+    ? 'bg-galenic-danger/5 border-l-2 border-galenic-danger'
+    : `border-l-2 border-transparent ${rowIndex % 2 === 1 ? 'bg-galenic-elevated/25' : ''}`
 
+  // Borderless by default — ring appears only on focus (user request)
   function inputCls(editable, danger = false) {
-    return [
-      'w-full border font-mono text-sm px-2 py-1 outline-none tabular-nums transition-colors',
-      editable && danger  ? 'bg-galenic-elevated border-galenic-danger text-galenic-danger focus:border-galenic-danger'
-      : editable          ? 'bg-galenic-elevated border-galenic-border text-galenic-primary focus:border-galenic-accent'
-                          : 'bg-galenic-base border-galenic-border text-galenic-muted cursor-default opacity-60',
-    ].join(' ')
+    if (!editable) return 'w-full font-mono text-sm px-2 py-1 outline-none tabular-nums bg-transparent text-galenic-muted cursor-default opacity-50'
+    if (danger)   return 'w-full font-mono text-sm px-2 py-1 outline-none tabular-nums bg-transparent rounded-md text-galenic-danger focus:ring-2 focus:ring-galenic-danger focus:bg-galenic-danger/5 transition-all'
+    return 'w-full font-mono text-sm px-2 py-1 outline-none tabular-nums bg-transparent rounded-md text-galenic-primary hover:bg-galenic-elevated/60 focus:ring-2 focus:ring-galenic-accent focus:bg-galenic-elevated/80 transition-all'
   }
 
   const lbl = 'text-xs text-galenic-muted font-mono whitespace-nowrap w-16 shrink-0'
 
   return (
-    <tr className={`border-b border-galenic-border hover:bg-galenic-elevated hover:bg-opacity-30 transition-colors ${rowBg}`}>
+    <tr className={`border-b border-galenic-border hover:bg-galenic-accent/5 transition-colors ${rowBg}`}>
 
       {/* Material name */}
       <td className="px-4 py-3">
@@ -221,14 +219,14 @@ export default function IngredientRow({ computedRow }) {
       </td>
 
       {/* Delete */}
-      <td className="px-4 py-3 text-right align-middle">
-        <Button
-          size="sm"
-          variant="danger"
+      <td className="px-3 py-3 text-right align-middle">
+        <button
           onClick={() => removeIngredient(computedRow.rowId)}
+          className="w-7 h-7 flex items-center justify-center rounded-md text-galenic-muted hover:text-galenic-danger hover:bg-galenic-danger/10 transition-all"
+          title="Rimuovi ingrediente"
         >
-          ×
-        </Button>
+          <Trash2 size={14} />
+        </button>
       </td>
     </tr>
   )

@@ -1,4 +1,5 @@
 import React from 'react'
+import { Package, FlaskConical, ShieldCheck } from 'lucide-react'
 import { useApp } from '../../context/AppContext.jsx'
 
 const NAV_ITEMS = [
@@ -6,31 +7,19 @@ const NAV_ITEMS = [
     id: 'inventory',
     label: 'Inventario',
     sublabel: 'Materie Prime & Pack',
-    icon: (
-      <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-      </svg>
-    ),
+    icon: <Package size={18} strokeWidth={1.5} />,
   },
   {
     id: 'formulator',
     label: 'Formulatore',
     sublabel: 'Crea & Calcola',
-    icon: (
-      <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1 1 .03 2.798-1.414 2.798H5.612c-1.444 0-2.414-1.798-1.414-2.798L5 14.5" />
-      </svg>
-    ),
+    icon: <FlaskConical size={18} strokeWidth={1.5} />,
   },
   {
     id: 'claims',
     label: 'Claim',
     sublabel: 'Vitamine · Minerali · Bot.',
-    icon: (
-      <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-      </svg>
-    ),
+    icon: <ShieldCheck size={18} strokeWidth={1.5} />,
   },
 ]
 
@@ -53,11 +42,8 @@ export default function Sidebar({ isOpen, onClose }) {
       {/* Logo / Brand */}
       <div className="px-5 py-5 border-b border-galenic-border/60">
         <div className="flex items-center gap-3">
-          {/* Icon badge with glow */}
           <div className="w-8 h-8 bg-galenic-accent/10 border border-galenic-accent/30 rounded-lg flex items-center justify-center shadow-glow-sm shrink-0">
-            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} className="text-galenic-accent">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3" />
-            </svg>
+            <FlaskConical size={15} className="text-galenic-accent" strokeWidth={2.5} />
           </div>
           <div>
             <div className="text-sm font-semibold text-galenic-primary tracking-wide">
