@@ -24,10 +24,11 @@ const EMPTY_FORM = {
 
 function detectCategory(initial) {
   if (!initial) return 'vitamina'
-  if (initial.activeNutrient === 'Eccipiente') return 'eccipiente'
+  if (initial.category) return initial.category  // saved field (new data)
+  if (initial.activeNutrient === 'Eccipiente' || (!initial.activeNutrient && !initial.nrvReference && !initial.maxLimitMg)) return 'eccipiente'  // legacy
   if (VITAMINE_REF.some(r => r.activeNutrient === initial.activeNutrient)) return 'vitamina'
   if (MINERALI_REF.some(r => r.activeNutrient === initial.activeNutrient)) return 'minerale'
-  if (!initial.maxLimitMg && !initial.nrvReference) return 'botanical'
+  if (initial.activeNutrient) return 'botanical'
   return 'vitamina'
 }
 
@@ -67,7 +68,7 @@ export default function RawMaterialForm({ initial, onSubmit, onCancel }) {
     setCategory(cat)
     setNutrientRef('')
     if (cat === 'eccipiente') {
-      setForm(prev => ({ ...prev, maxLimitMg: '', nrvReference: '', activeNutrient: 'Eccipiente' }))
+      setForm(prev => ({ ...prev, maxLimitMg: '', nrvReference: '', activeNutrient: '', titration: '100' }))
     }
   }
 
@@ -92,7 +93,9 @@ export default function RawMaterialForm({ initial, onSubmit, onCancel }) {
     e.name       = validateRequired(form.name, 'Nome')
     e.pricePerKg = validatePositiveNumber(form.pricePerKg, 'Prezzo/kg')
     e.purity     = validatePercent(form.purity, 'Purezza')
-    e.titration  = validatePercent(form.titration, 'Titolazione')
+    if (category !== 'eccipiente') {
+      e.titration = validatePercent(form.titration, 'Titolazione')
+    }
     if (form.maxLimitMg !== '' && form.maxLimitMg !== null) {
       e.maxLimitMg = validatePositiveNumber(form.maxLimitMg, 'Limite Max')
     }
@@ -111,15 +114,17 @@ export default function RawMaterialForm({ initial, onSubmit, onCancel }) {
       setErrors(errs)
       return
     }
+    const isEccipiente = category === 'eccipiente'
     onSubmit({
       name:           form.name.trim(),
       supplier:       form.supplier.trim(),
       pricePerKg:     parseFloat(form.pricePerKg) || 0,
       purity:         parseFloat(form.purity) || 100,
-      titration:      parseFloat(form.titration) || 100,
-      activeNutrient: form.activeNutrient.trim(),
-      maxLimitMg:     form.maxLimitMg !== '' ? parseFloat(form.maxLimitMg) : 0,
-      nrvReference:   form.nrvReference !== '' ? parseFloat(form.nrvReference) : 0,
+      titration:      isEccipiente ? 100 : (parseFloat(form.titration) || 100),
+      activeNutrient: isEccipiente ? '' : form.activeNutrient.trim(),
+      maxLimitMg:     isEccipiente ? 0 : (form.maxLimitMg !== '' ? parseFloat(form.maxLimitMg) : 0),
+      nrvReference:   isEccipiente ? 0 : (form.nrvReference !== '' ? parseFloat(form.nrvReference) : 0),
+      category,
     })
   }
 
@@ -196,47 +201,72 @@ export default function RawMaterialForm({ initial, onSubmit, onCancel }) {
         />
       </div>
 
-      {/* Prezzo, Purezza, Titolazione, Nutriente Attivo */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Input
-          label="Prezzo / kg (€) *"
-          type="number"
-          step="0.01"
-          min="0"
-          value={form.pricePerKg}
-          onChange={e => set('pricePerKg', e.target.value)}
-          error={errors.pricePerKg}
-          placeholder="0.00"
-        />
-        <Input
-          label="Purezza % *"
-          type="number"
-          step="0.01"
-          min="0"
-          max="100"
-          value={form.purity}
-          onChange={e => set('purity', e.target.value)}
-          error={errors.purity}
-          placeholder="100"
-        />
-        <Input
-          label="Titolazione % *"
-          type="number"
-          step="0.01"
-          min="0"
-          max="100"
-          value={form.titration}
-          onChange={e => set('titration', e.target.value)}
-          error={errors.titration}
-          placeholder="100"
-        />
-        <Input
-          label="Nutriente Attivo"
-          value={form.activeNutrient}
-          onChange={e => set('activeNutrient', e.target.value)}
-          placeholder="es. Vitamina C"
-        />
-      </div>
+      {/* Prezzo + Purezza (always shown) + Titolazione + Nutriente Attivo (hidden for eccipiente) */}
+      {category === 'eccipiente' ? (
+        <>
+          {/* Eccipiente info */}
+          <div className="flex items-start gap-2.5 bg-galenic-elevated/60 border border-galenic-border/60 rounded-lg p-3 text-xs text-galenic-muted">
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="shrink-0 mt-0.5 text-galenic-muted/60">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+            </svg>
+            <span>
+              Gli eccipienti sono sostanze inerti (es. cellulosa microcristallina, magnesio stearato, silice colloidale).
+              Non contribuiscono all'apporto nutrizionale — non hanno VNR né limiti di legge.
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Prezzo / kg (€) *"
+              type="number" step="0.01" min="0"
+              value={form.pricePerKg}
+              onChange={e => set('pricePerKg', e.target.value)}
+              error={errors.pricePerKg}
+              placeholder="0.00"
+            />
+            <Input
+              label="Purezza % *"
+              type="number" step="0.01" min="0" max="100"
+              value={form.purity}
+              onChange={e => set('purity', e.target.value)}
+              error={errors.purity}
+              placeholder="100"
+            />
+          </div>
+        </>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Input
+            label="Prezzo / kg (€) *"
+            type="number" step="0.01" min="0"
+            value={form.pricePerKg}
+            onChange={e => set('pricePerKg', e.target.value)}
+            error={errors.pricePerKg}
+            placeholder="0.00"
+          />
+          <Input
+            label="Purezza % *"
+            type="number" step="0.01" min="0" max="100"
+            value={form.purity}
+            onChange={e => set('purity', e.target.value)}
+            error={errors.purity}
+            placeholder="100"
+          />
+          <Input
+            label="Titolazione % *"
+            type="number" step="0.01" min="0" max="100"
+            value={form.titration}
+            onChange={e => set('titration', e.target.value)}
+            error={errors.titration}
+            placeholder="100"
+          />
+          <Input
+            label="Nutriente Attivo"
+            value={form.activeNutrient}
+            onChange={e => set('activeNutrient', e.target.value)}
+            placeholder="es. Vitamina C"
+          />
+        </div>
+      )}
 
       {/* Limite Max + VNR (nascosti per eccipiente) */}
       {category !== 'eccipiente' && (

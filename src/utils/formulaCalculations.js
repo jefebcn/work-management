@@ -29,8 +29,10 @@ export function computeIngredientRow(ingredient, rawMaterial, targetWeightMg, do
     targetWeightMg > 0 ? (amountMg / targetWeightMg) * 100 : 0
 
   // Active nutrient per dose in mg = amountMg × purity% × titration%
-  const realNutrientContribution =
-    amountMg * ((rawMaterial.purity || 100) / 100) * ((rawMaterial.titration || 100) / 100)
+  // Excipients (no activeNutrient) contribute 0 — they are inert
+  const realNutrientContribution = rawMaterial.activeNutrient
+    ? amountMg * ((rawMaterial.purity || 100) / 100) * ((rawMaterial.titration || 100) / 100)
+    : 0
 
   // Daily active nutrient = per-dose contribution × doses/day
   const dailyContribution = realNutrientContribution * (dosiAlGiorno || 1)
