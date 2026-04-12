@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useApp } from '../../context/AppContext.jsx'
 import Badge from '../ui/Badge.jsx'
 import Button from '../ui/Button.jsx'
@@ -34,11 +34,32 @@ export default function IngredientRow({ computedRow }) {
   const aptPerDose = computedRow.realNutrientContribution
   const aptPerDay  = computedRow.dailyContribution
 
-  // Format: strip trailing zeros, show empty string instead of 0
-  function fmt(v) {
+  // ── Local string states — allow typing "0.001" without intermediate wipe ──
+  // Controlled inputs with value={fmt(computed)} wipe "0" on every keystroke
+  // because fmt(0)='' causes React to clear the input after parseFloat("0")=0.
+  // Fix: each input holds its own string; useEffect syncs from computed only
+  // when that field is not focused.
+
+  const [qDoseStr, setQDoseStr] = useState('')
+  const [qDieStr,  setQDieStr]  = useState('')
+  const [aDoseStr, setADoseStr] = useState('')
+  const [aDieStr,  setADieStr]  = useState('')
+  const focused = useRef(null)  // 'qDose' | 'qDie' | 'aDose' | 'aDie' | null
+
+  // Format: strip trailing zeros, show empty string for zero/null
+  function display(v) {
     if (!v) return ''
-    return parseFloat(v.toFixed(6))
+    return String(parseFloat(v.toFixed(6)))
   }
+
+  // Sync display strings from computed values whenever they change,
+  // but skip the field the user is currently typing in.
+  useEffect(() => {
+    if (focused.current !== 'qDose') setQDoseStr(display(qtyPerDose))
+    if (focused.current !== 'qDie')  setQDieStr(display(qtyPerDay))
+    if (focused.current !== 'aDose') setADoseStr(display(aptPerDose))
+    if (focused.current !== 'aDie')  setADieStr(display(aptPerDay))
+  }, [qtyPerDose, qtyPerDay, aptPerDose, aptPerDay])
 
   // ── Four handlers, each back-calculating amountMg ─────────────────────────
 
@@ -101,8 +122,14 @@ export default function IngredientRow({ computedRow }) {
           <div className="flex items-center gap-1.5">
             <input
               type="number" step="any" min="0"
-              value={fmt(qtyPerDose)}
-              onChange={!isReadOnly ? onQtyDose : undefined}
+              value={qDoseStr}
+              onChange={!isReadOnly ? e => {
+                setQDoseStr(e.target.value)
+                const v = parseFloat(e.target.value)
+                if (v > 0) setIngredientAmount(computedRow.rowId, toMg(v, unit))
+              } : undefined}
+              onFocus={!isReadOnly ? () => { focused.current = 'qDose' } : undefined}
+              onBlur={!isReadOnly ? e => { focused.current = null; onQtyDose(e) } : undefined}
               readOnly={isReadOnly}
               className={inputCls(!isReadOnly)}
             />
@@ -111,8 +138,14 @@ export default function IngredientRow({ computedRow }) {
           <div className="flex items-center gap-1.5">
             <input
               type="number" step="any" min="0"
-              value={fmt(qtyPerDay)}
-              onChange={!isReadOnly ? onQtyDie : undefined}
+              value={qDieStr}
+              onChange={!isReadOnly ? e => {
+                setQDieStr(e.target.value)
+                const v = parseFloat(e.target.value)
+                if (v > 0) setIngredientAmount(computedRow.rowId, toMg(v, unit) / dosiAlGiorno)
+              } : undefined}
+              onFocus={!isReadOnly ? () => { focused.current = 'qDie' } : undefined}
+              onBlur={!isReadOnly ? e => { focused.current = null; onQtyDie(e) } : undefined}
               readOnly={isReadOnly}
               className={inputCls(!isReadOnly)}
             />
@@ -134,8 +167,14 @@ export default function IngredientRow({ computedRow }) {
           <div className="flex items-center gap-1.5">
             <input
               type="number" step="any" min="0"
-              value={fmt(aptPerDose)}
-              onChange={!isReadOnly && canApt ? onAptDose : undefined}
+              value={aDoseStr}
+              onChange={!isReadOnly && canApt ? e => {
+                setADoseStr(e.target.value)
+                const v = parseFloat(e.target.value)
+                if (v > 0) setIngredientAmount(computedRow.rowId, v / factor)
+              } : undefined}
+              onFocus={!isReadOnly && canApt ? () => { focused.current = 'aDose' } : undefined}
+              onBlur={!isReadOnly && canApt ? e => { focused.current = null; onAptDose(e) } : undefined}
               readOnly={isReadOnly || !canApt}
               className={inputCls(!isReadOnly && canApt)}
             />
@@ -144,8 +183,14 @@ export default function IngredientRow({ computedRow }) {
           <div className="flex items-center gap-1.5">
             <input
               type="number" step="any" min="0"
-              value={fmt(aptPerDay)}
-              onChange={!isReadOnly && canApt ? onAptDie : undefined}
+              value={aDieStr}
+              onChange={!isReadOnly && canApt ? e => {
+                setADieStr(e.target.value)
+                const v = parseFloat(e.target.value)
+                if (v > 0) setIngredientAmount(computedRow.rowId, v / (dosiAlGiorno * factor))
+              } : undefined}
+              onFocus={!isReadOnly && canApt ? () => { focused.current = 'aDie' } : undefined}
+              onBlur={!isReadOnly && canApt ? e => { focused.current = null; onAptDie(e) } : undefined}
               readOnly={isReadOnly || !canApt}
               className={inputCls(!isReadOnly && canApt, computedRow.exceedsMaxLimit)}
             />
