@@ -20,6 +20,7 @@ export default function IngredientRow({ computedRow }) {
   if (!ingredient) return null
 
   const unit = activeFormula.targetWeightUnit || 'mg'
+  const dosiAlGiorno = activeFormula.dosiAlGiorno || 1
   const factor = (rm.purity / 100) * (rm.titration / 100)
   const canBackCalculate = factor > 0
 
@@ -29,12 +30,12 @@ export default function IngredientRow({ computedRow }) {
     setIngredientAmount(computedRow.rowId, toMg(display, unit))
   }
 
-  // ── Contribution input handler (back-calculates quantity) ──────────────────
+  // ── Contribution input handler (back-calculates quantity from daily value) ──
   function handleContributionChange(e) {
-    const contribution = parseFloat(e.target.value) || 0
+    const dailyValue = parseFloat(e.target.value) || 0
     if (!canBackCalculate) return
-    // reverse: amountMg = contribution / factor
-    const newAmountMg = contribution / factor
+    // reverse: amountMg = dailyValue / (dosiAlGiorno × factor)
+    const newAmountMg = dailyValue / (dosiAlGiorno * factor)
     setIngredientAmount(computedRow.rowId, newAmountMg)
   }
 
@@ -108,8 +109,8 @@ export default function IngredientRow({ computedRow }) {
                   type="number"
                   step="any"
                   min="0"
-                  defaultValue={computedRow.realNutrientContribution.toFixed(4)}
-                  key={computedRow.realNutrientContribution.toFixed(4)} // re-mount when changed externally
+                  defaultValue={computedRow.dailyContribution.toFixed(4)}
+                  key={computedRow.dailyContribution.toFixed(4)} // re-mount when changed externally
                   onChange={handleContributionChange}
                   disabled={!canBackCalculate}
                   className={[
@@ -120,11 +121,11 @@ export default function IngredientRow({ computedRow }) {
                       : 'bg-galenic-base border-galenic-border text-galenic-muted cursor-not-allowed opacity-50',
                   ].join(' ')}
                 />
-                <span className="text-xs text-galenic-muted font-mono">mg</span>
+                <span className="text-xs text-galenic-muted font-mono">mg/die</span>
               </div>
-              {computedRow.dailyContribution !== computedRow.realNutrientContribution && (
-                <div className={`text-xs font-mono tabular-nums ${computedRow.exceedsMaxLimit ? 'text-galenic-danger font-semibold' : 'text-galenic-muted'}`}>
-                  {computedRow.dailyContribution.toFixed(3)} mg/die
+              {dosiAlGiorno > 1 && (
+                <div className="text-xs font-mono text-galenic-muted tabular-nums opacity-70">
+                  {computedRow.realNutrientContribution.toFixed(3)} mg/dose
                 </div>
               )}
             </div>
@@ -133,7 +134,7 @@ export default function IngredientRow({ computedRow }) {
               <div className={`font-mono text-sm tabular-nums ${computedRow.exceedsMaxLimit ? 'text-galenic-danger font-semibold' : 'text-galenic-primary'}`}>
                 {computedRow.dailyContribution.toFixed(3)} mg/die
               </div>
-              {computedRow.dailyContribution !== computedRow.realNutrientContribution && (
+              {dosiAlGiorno > 1 && (
                 <div className="text-xs font-mono text-galenic-muted tabular-nums opacity-70">
                   {computedRow.realNutrientContribution.toFixed(3)} mg/dose
                 </div>
