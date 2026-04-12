@@ -34,15 +34,25 @@ const NAV_ITEMS = [
   },
 ]
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }) {
   const { currentModule, setCurrentModule, formulas } = useApp()
 
+  function navigate(id) {
+    setCurrentModule(id)
+    onClose()   // close drawer on mobile after nav
+  }
+
   return (
-    <aside className="fixed left-0 top-0 bottom-0 w-56 bg-galenic-surface border-r border-galenic-border flex flex-col z-30">
+    <aside className={[
+      'fixed left-0 top-0 bottom-0 w-56 bg-galenic-surface border-r border-galenic-border flex flex-col z-30',
+      'transition-transform duration-200 ease-in-out',
+      isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
+    ].join(' ')}>
+
       {/* Logo / Brand */}
       <div className="px-5 py-5 border-b border-galenic-border">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-galenic-accent flex items-center justify-center">
+          <div className="w-7 h-7 bg-galenic-accent flex items-center justify-center shrink-0">
             <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} className="text-galenic-base">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3" />
             </svg>
@@ -51,19 +61,22 @@ export default function Sidebar() {
             <div className="text-sm font-mono font-semibold text-galenic-primary tracking-wide">
               Galenic-OS
             </div>
-            <div className="text-xs font-mono text-galenic-muted">v0.1.0</div>
+            <div className="text-xs font-mono text-galenic-muted">v0.2.0</div>
+            <div className="text-xs italic text-galenic-muted opacity-50 leading-tight" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
+              by elia conti
+            </div>
           </div>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {NAV_ITEMS.map(item => {
           const isActive = currentModule === item.id
           return (
             <button
               key={item.id}
-              onClick={() => setCurrentModule(item.id)}
+              onClick={() => navigate(item.id)}
               className={[
                 'w-full flex items-center gap-3 px-3 py-3 text-left transition-all duration-150',
                 isActive
