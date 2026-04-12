@@ -112,6 +112,7 @@ export default function FormulaBuilder() {
                   <th className="px-4 py-3 text-center text-xs text-galenic-muted uppercase tracking-wider">% Peso</th>
                   <th className="px-4 py-3 text-center text-xs text-galenic-muted uppercase tracking-wider">Apporto Reale</th>
                   <th className="px-4 py-3 text-center text-xs text-galenic-muted uppercase tracking-wider">VNR %</th>
+                  <th className="px-3 py-3 text-center text-xs text-galenic-muted uppercase tracking-wider w-14">Modo</th>
                   <th className="px-4 py-3 text-center text-xs text-galenic-muted uppercase tracking-wider">Fill</th>
                   <th className="px-4 py-3" />
                 </tr>
