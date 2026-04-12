@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useApp } from '../../context/AppContext.jsx'
 import FormulaHeader from './FormulaHeader.jsx'
 import IngredientRow from './IngredientRow.jsx'
@@ -8,6 +8,7 @@ import NRVSummaryPanel from './NRVSummaryPanel.jsx'
 import StabilityPanel from '../stability/StabilityPanel.jsx'
 import CostSummary from '../stability/CostSummary.jsx'
 import Button from '../ui/Button.jsx'
+import ExportModal from './ExportModal.jsx'
 
 export default function FormulaBuilder() {
   const {
@@ -17,6 +18,7 @@ export default function FormulaBuilder() {
     saveFormula,
     setFormulaField,
   } = useApp()
+  const [showExport, setShowExport] = useState(false)
 
   if (!activeFormula) return null
 
@@ -64,6 +66,9 @@ export default function FormulaBuilder() {
             </span>
           </label>
 
+          <Button variant="ghost" size="sm" onClick={() => setShowExport(true)}>
+            Esporta
+          </Button>
           <Button variant="subtle" size="sm" onClick={() => handleSave()}>
             Salva
           </Button>
@@ -141,6 +146,9 @@ export default function FormulaBuilder() {
 
       {/* Cost summary */}
       <CostSummary />
+
+      {/* Export modal */}
+      <ExportModal isOpen={showExport} onClose={() => setShowExport(false)} />
     </div>
   )
 }
