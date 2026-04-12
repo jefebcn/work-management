@@ -2,6 +2,14 @@ import React, { useState, useEffect } from 'react'
 import Input from '../ui/Input.jsx'
 import Button from '../ui/Button.jsx'
 import { validateRequired, validatePositiveNumber, validatePercent } from '../../utils/validators.js'
+import { VITAMINE_REF, MINERALI_REF, fmtLimit } from '../../data/regulatoryLimits.js'
+
+const CATEGORIES = [
+  { key: 'vitamina',   label: 'Vitamina' },
+  { key: 'minerale',   label: 'Minerale' },
+  { key: 'botanical',  label: 'Botanical / Funzionale' },
+  { key: 'eccipiente', label: 'Eccipiente' },
+]
 
 const EMPTY_FORM = {
   name: '',
@@ -14,25 +22,39 @@ const EMPTY_FORM = {
   nrvReference: '',
 }
 
+function detectCategory(initial) {
+  if (!initial) return 'vitamina'
+  if (initial.activeNutrient === 'Eccipiente') return 'eccipiente'
+  if (VITAMINE_REF.some(r => r.activeNutrient === initial.activeNutrient)) return 'vitamina'
+  if (MINERALI_REF.some(r => r.activeNutrient === initial.activeNutrient)) return 'minerale'
+  if (!initial.maxLimitMg && !initial.nrvReference) return 'botanical'
+  return 'vitamina'
+}
+
 export default function RawMaterialForm({ initial, onSubmit, onCancel }) {
   const [form, setForm] = useState(EMPTY_FORM)
   const [errors, setErrors] = useState({})
+  const [category, setCategory] = useState('vitamina')
+  const [nutrientRef, setNutrientRef] = useState('')
 
   useEffect(() => {
     if (initial) {
       setForm({
-        name:          initial.name         ?? '',
-        supplier:      initial.supplier     ?? '',
-        pricePerKg:    initial.pricePerKg   ?? '',
-        purity:        initial.purity       ?? '100',
-        titration:     initial.titration    ?? '100',
+        name:           initial.name          ?? '',
+        supplier:       initial.supplier      ?? '',
+        pricePerKg:     initial.pricePerKg    ?? '',
+        purity:         initial.purity        ?? '100',
+        titration:      initial.titration     ?? '100',
         activeNutrient: initial.activeNutrient ?? '',
-        maxLimitMg:    initial.maxLimitMg   ?? '',
-        nrvReference:  initial.nrvReference ?? '',
+        maxLimitMg:     initial.maxLimitMg    ?? '',
+        nrvReference:   initial.nrvReference  ?? '',
       })
+      setCategory(detectCategory(initial))
     } else {
       setForm(EMPTY_FORM)
+      setCategory('vitamina')
     }
+    setNutrientRef('')
     setErrors({})
   }, [initial])
 
@@ -41,12 +63,36 @@ export default function RawMaterialForm({ initial, onSubmit, onCancel }) {
     if (errors[field]) setErrors(prev => ({ ...prev, [field]: null }))
   }
 
+  function handleCategoryChange(cat) {
+    setCategory(cat)
+    setNutrientRef('')
+    if (cat === 'eccipiente') {
+      setForm(prev => ({ ...prev, maxLimitMg: '', nrvReference: '', activeNutrient: 'Eccipiente' }))
+    }
+  }
+
+  function handleNutrientRefChange(e) {
+    const key = e.target.value
+    setNutrientRef(key)
+    if (!key) return
+    const refList = category === 'vitamina' ? VITAMINE_REF : MINERALI_REF
+    const ref = refList.find(r => r.key === key)
+    if (!ref) return
+    setForm(prev => ({
+      ...prev,
+      activeNutrient: ref.activeNutrient,
+      maxLimitMg:     ref.maxLimitMg,
+      nrvReference:   ref.nrvReference,
+    }))
+    setErrors(prev => ({ ...prev, activeNutrient: null, maxLimitMg: null, nrvReference: null }))
+  }
+
   function validate() {
     const e = {}
-    e.name        = validateRequired(form.name, 'Nome')
-    e.pricePerKg  = validatePositiveNumber(form.pricePerKg, 'Prezzo/kg')
-    e.purity      = validatePercent(form.purity, 'Purezza')
-    e.titration   = validatePercent(form.titration, 'Titolazione')
+    e.name       = validateRequired(form.name, 'Nome')
+    e.pricePerKg = validatePositiveNumber(form.pricePerKg, 'Prezzo/kg')
+    e.purity     = validatePercent(form.purity, 'Purezza')
+    e.titration  = validatePercent(form.titration, 'Titolazione')
     if (form.maxLimitMg !== '' && form.maxLimitMg !== null) {
       e.maxLimitMg = validatePositiveNumber(form.maxLimitMg, 'Limite Max')
     }
@@ -77,8 +123,63 @@ export default function RawMaterialForm({ initial, onSubmit, onCancel }) {
     })
   }
 
+  const refList = category === 'vitamina' ? VITAMINE_REF : MINERALI_REF
+  const showRefSelect = category === 'vitamina' || category === 'minerale'
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+
+      {/* Category selector */}
+      <div>
+        <div className="text-xs font-mono text-galenic-muted uppercase tracking-wider mb-2">
+          Categoria
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {CATEGORIES.map(cat => (
+            <button
+              key={cat.key}
+              type="button"
+              onClick={() => handleCategoryChange(cat.key)}
+              className={[
+                'px-3 py-1.5 text-xs font-mono border transition-colors',
+                category === cat.key
+                  ? 'border-galenic-accent text-galenic-accent bg-galenic-accent bg-opacity-10'
+                  : 'border-galenic-border text-galenic-muted hover:border-galenic-primary hover:text-galenic-primary',
+              ].join(' ')}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Nutrient reference selector (vitamina / minerale only) */}
+      {showRefSelect && (
+        <div>
+          <div className="text-xs font-mono text-galenic-muted uppercase tracking-wider mb-1">
+            Compila automaticamente dai limiti normativi
+          </div>
+          <select
+            value={nutrientRef}
+            onChange={handleNutrientRefChange}
+            className="w-full border border-galenic-border bg-galenic-elevated text-galenic-primary text-xs font-mono px-3 py-2 outline-none focus:border-galenic-accent"
+          >
+            <option value="">— Seleziona per compilare automaticamente —</option>
+            {refList.map(r => (
+              <option key={r.key} value={r.key}>
+                {r.label}  ({fmtLimit(r.maxLimitMg)})
+              </option>
+            ))}
+          </select>
+          {nutrientRef && (
+            <div className="text-xs text-galenic-muted mt-1">
+              Puoi modificare manualmente i valori compilati.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Nome + Fornitore */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
           label="Nome Materia Prima *"
@@ -95,6 +196,7 @@ export default function RawMaterialForm({ initial, onSubmit, onCancel }) {
         />
       </div>
 
+      {/* Prezzo, Purezza, Titolazione, Nutriente Attivo */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Input
           label="Prezzo / kg (€) *"
@@ -136,30 +238,33 @@ export default function RawMaterialForm({ initial, onSubmit, onCancel }) {
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Input
-          label="Limite Max (mg)"
-          type="number"
-          step="0.001"
-          min="0"
-          value={form.maxLimitMg}
-          onChange={e => set('maxLimitMg', e.target.value)}
-          error={errors.maxLimitMg}
-          hint="Limite regolatorio giornaliero (0 = nessun limite)"
-          placeholder="0"
-        />
-        <Input
-          label="VNR Rif. (mg)"
-          type="number"
-          step="0.0001"
-          min="0"
-          value={form.nrvReference}
-          onChange={e => set('nrvReference', e.target.value)}
-          error={errors.nrvReference}
-          hint="Valore Nutritivo di Riferimento (0 = N/D)"
-          placeholder="0"
-        />
-      </div>
+      {/* Limite Max + VNR (nascosti per eccipiente) */}
+      {category !== 'eccipiente' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Limite Max (mg)"
+            type="number"
+            step="0.0001"
+            min="0"
+            value={form.maxLimitMg}
+            onChange={e => set('maxLimitMg', e.target.value)}
+            error={errors.maxLimitMg}
+            hint="Limite regolatorio giornaliero — Min. Salute 2021 (0 = nessun limite)"
+            placeholder="0"
+          />
+          <Input
+            label="VNR Rif. (mg)"
+            type="number"
+            step="0.0001"
+            min="0"
+            value={form.nrvReference}
+            onChange={e => set('nrvReference', e.target.value)}
+            error={errors.nrvReference}
+            hint="Valore Nutritivo di Riferimento — Reg. UE 1169/2011 (0 = N/D)"
+            placeholder="0"
+          />
+        </div>
+      )}
 
       <div className="flex justify-end gap-3 pt-2 border-t border-galenic-border">
         <Button variant="ghost" type="button" onClick={onCancel}>
