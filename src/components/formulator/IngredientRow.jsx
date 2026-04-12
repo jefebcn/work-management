@@ -114,7 +114,7 @@ export default function IngredientRow({ computedRow }) {
                   onChange={handleContributionChange}
                   disabled={!canBackCalculate}
                   className={[
-                    'w-24 border text-galenic-primary font-mono text-sm px-2 py-1.5',
+                    'w-32 border text-galenic-primary font-mono text-sm px-2 py-1.5',
                     'outline-none tabular-nums transition-colors',
                     canBackCalculate
                       ? 'bg-galenic-elevated border-galenic-accent focus:border-galenic-accent'
