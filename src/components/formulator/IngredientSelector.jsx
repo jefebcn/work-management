@@ -45,7 +45,7 @@ export default function IngredientSelector() {
             setSelectedId('') // reset selection when query changes
           }}
           placeholder="Cerca materia prima per nome o nutriente..."
-          className="w-full bg-galenic-surface border border-galenic-border text-galenic-primary font-mono text-sm pl-8 pr-3 py-2 outline-none focus:border-galenic-accent transition-colors placeholder:text-galenic-muted"
+          className="w-full bg-galenic-surface border border-galenic-border rounded-xl text-galenic-primary font-mono text-sm pl-8 pr-3 py-2 outline-none focus:border-galenic-accent transition-colors placeholder:text-galenic-muted"
         />
         {searchQuery && (
           <button
@@ -62,7 +62,7 @@ export default function IngredientSelector() {
         <select
           value={selectedId}
           onChange={e => setSelectedId(e.target.value)}
-          className="flex-1 bg-galenic-surface border border-galenic-border text-galenic-primary font-mono text-sm px-3 py-2 outline-none focus:border-galenic-accent transition-colors"
+          className="flex-1 bg-galenic-surface border border-galenic-border rounded-xl text-galenic-primary font-mono text-sm px-3 py-2 outline-none focus:border-galenic-accent transition-colors"
         >
           <option value="">
             {filtered.length === 0 && q

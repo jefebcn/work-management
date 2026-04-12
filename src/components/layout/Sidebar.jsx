@@ -23,12 +23,12 @@ const NAV_ITEMS = [
     ),
   },
   {
-    id: 'stability',
-    label: 'Stabilità & Costi',
-    sublabel: 'Analisi & Prezzi',
+    id: 'claims',
+    label: 'Claim',
+    sublabel: 'Vitamine · Minerali · Bot.',
     icon: (
       <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
       </svg>
     ),
   },
@@ -39,30 +39,32 @@ export default function Sidebar({ isOpen, onClose }) {
 
   function navigate(id) {
     setCurrentModule(id)
-    onClose()   // close drawer on mobile after nav
+    onClose()
   }
 
   return (
     <aside className={[
-      'fixed left-0 top-0 bottom-0 w-56 bg-galenic-surface border-r border-galenic-border flex flex-col z-30',
+      'fixed left-0 top-0 bottom-0 w-56 flex flex-col z-30',
+      'bg-galenic-surface border-r border-galenic-border/60',
       'transition-transform duration-200 ease-in-out',
       isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
     ].join(' ')}>
 
       {/* Logo / Brand */}
-      <div className="px-5 py-5 border-b border-galenic-border">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-galenic-accent flex items-center justify-center shrink-0">
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} className="text-galenic-base">
+      <div className="px-5 py-5 border-b border-galenic-border/60">
+        <div className="flex items-center gap-3">
+          {/* Icon badge with glow */}
+          <div className="w-8 h-8 bg-galenic-accent/10 border border-galenic-accent/30 rounded-lg flex items-center justify-center shadow-glow-sm shrink-0">
+            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} className="text-galenic-accent">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3" />
             </svg>
           </div>
           <div>
-            <div className="text-sm font-mono font-semibold text-galenic-primary tracking-wide">
+            <div className="text-sm font-semibold text-galenic-primary tracking-wide">
               Galenic-OS
             </div>
             <div className="text-xs font-mono text-galenic-muted">v0.2.0</div>
-            <div className="text-xs italic text-galenic-muted opacity-50 leading-tight" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
+            <div className="text-xs italic text-galenic-muted/50 leading-tight" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
               by elia conti
             </div>
           </div>
@@ -78,19 +80,19 @@ export default function Sidebar({ isOpen, onClose }) {
               key={item.id}
               onClick={() => navigate(item.id)}
               className={[
-                'w-full flex items-center gap-3 px-3 py-3 text-left transition-all duration-150',
+                'w-full flex items-center gap-3 px-3 py-2.5 text-left rounded-lg transition-all duration-150',
                 isActive
-                  ? 'bg-galenic-accent bg-opacity-10 border-l-2 border-galenic-accent text-galenic-accent'
-                  : 'text-galenic-muted hover:text-galenic-primary hover:bg-galenic-elevated border-l-2 border-transparent',
+                  ? 'bg-galenic-accent/10 border border-galenic-accent/25 text-galenic-accent shadow-glow-sm'
+                  : 'text-galenic-muted hover:text-galenic-primary hover:bg-galenic-elevated/60 border border-transparent',
               ].join(' ')}
             >
               <span className="flex-shrink-0">{item.icon}</span>
               <div className="min-w-0">
-                <div className="text-xs font-mono font-medium truncate">{item.label}</div>
-                <div className="text-xs font-mono text-galenic-muted truncate opacity-70">{item.sublabel}</div>
+                <div className="text-xs font-medium truncate">{item.label}</div>
+                <div className="text-xs text-galenic-muted truncate opacity-60">{item.sublabel}</div>
               </div>
               {item.id === 'formulator' && formulas.length > 0 && (
-                <span className="ml-auto bg-galenic-accent bg-opacity-20 text-galenic-accent text-xs px-1.5 py-0.5 font-mono">
+                <span className="ml-auto bg-galenic-accent/20 text-galenic-accent text-xs px-1.5 py-0.5 font-mono rounded-md">
                   {formulas.length}
                 </span>
               )}
@@ -100,8 +102,8 @@ export default function Sidebar({ isOpen, onClose }) {
       </nav>
 
       {/* Footer */}
-      <div className="px-5 py-4 border-t border-galenic-border">
-        <div className="text-xs font-mono text-galenic-muted opacity-50">
+      <div className="px-5 py-4 border-t border-galenic-border/60">
+        <div className="text-xs text-galenic-muted/40 font-mono">
           Pharmaceutical Formulator
         </div>
       </div>

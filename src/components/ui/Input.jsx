@@ -14,7 +14,7 @@ export default function Input({
   return (
     <div className={`flex flex-col gap-1 ${containerClassName}`}>
       {label && (
-        <label htmlFor={inputId} className="text-xs text-galenic-muted font-mono uppercase tracking-wide">
+        <label htmlFor={inputId} className="text-xs text-galenic-muted uppercase tracking-wide font-medium">
           {label}
         </label>
       )}
@@ -22,17 +22,17 @@ export default function Input({
         id={inputId}
         className={[
           'bg-galenic-elevated border text-galenic-primary font-mono text-sm',
-          'px-3 py-2 outline-none transition-colors',
-          'placeholder:text-galenic-muted',
+          'px-3 py-2 rounded-lg outline-none transition-colors',
+          'placeholder:text-galenic-muted/50',
           error
-            ? 'border-galenic-danger focus:border-galenic-danger'
-            : 'border-galenic-border focus:border-galenic-accent',
+            ? 'border-galenic-danger focus:border-galenic-danger focus:galenic-glow'
+            : 'border-galenic-border focus:border-galenic-accent focus:shadow-glow-sm',
           className,
         ].join(' ')}
         {...props}
       />
-      {error && <span className="text-xs text-galenic-danger font-mono">{error}</span>}
-      {hint && !error && <span className="text-xs text-galenic-muted font-mono">{hint}</span>}
+      {error && <span className="text-xs text-galenic-danger">{error}</span>}
+      {hint && !error && <span className="text-xs text-galenic-muted">{hint}</span>}
     </div>
   )
 }

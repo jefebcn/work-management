@@ -105,7 +105,7 @@ export default function FormulaList() {
         </Button>
       </div>
 
-      <div className="bg-galenic-surface border border-galenic-border">
+      <div className="bg-galenic-surface border border-galenic-border rounded-xl">
         <Table
           columns={columns}
           rows={formulas}

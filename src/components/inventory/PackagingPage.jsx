@@ -51,7 +51,7 @@ export default function PackagingPage() {
         </Button>
       </div>
 
-      <div className="bg-galenic-surface border border-galenic-border">
+      <div className="bg-galenic-surface border border-galenic-border rounded-xl">
         <PackagingTable
           packaging={packaging}
           onEdit={handleEdit}

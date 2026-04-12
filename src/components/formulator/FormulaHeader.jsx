@@ -26,7 +26,7 @@ export default function FormulaHeader() {
   const displayWeight = fromMg(activeFormula.targetWeightMg, activeFormula.targetWeightUnit || 'mg')
 
   return (
-    <div className="bg-galenic-surface border border-galenic-border p-5">
+    <div className="bg-galenic-surface border border-galenic-border rounded-xl p-5">
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
         {/* Formula name */}
         <div className="md:col-span-2">

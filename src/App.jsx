@@ -6,7 +6,7 @@ import PageWrapper from './components/layout/PageWrapper.jsx'
 import RawMaterialsPage from './components/inventory/RawMaterialsPage.jsx'
 import PackagingPage from './components/inventory/PackagingPage.jsx'
 import FormulatorPage from './components/formulator/FormulatorPage.jsx'
-import StabilityPage from './components/stability/StabilityPage.jsx'
+import ClaimsPage from './components/claims/ClaimsPage.jsx'
 
 function AppShell() {
   const { currentModule } = useApp()
@@ -36,7 +36,7 @@ function AppShell() {
             </div>
           )}
           {currentModule === 'formulator' && <FormulatorPage />}
-          {currentModule === 'stability' && <StabilityPage />}
+          {currentModule === 'claims' && <ClaimsPage />}
         </PageWrapper>
       </div>
     </div>

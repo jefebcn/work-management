@@ -14,26 +14,29 @@ export default function Modal({ isOpen, onClose, title, children, width = 'max-w
   if (!isOpen) return null
 
   return ReactDOM.createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop with blur */}
       <div
-        className="absolute inset-0 bg-black bg-opacity-70"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       />
 
-      {/* Dialog */}
+      {/* Dialog — glassmorphism panel */}
       <div
-        className={`relative z-10 bg-galenic-surface border border-galenic-border w-full ${width} mx-4 max-h-[90vh] flex flex-col`}
+        className={[
+          'relative z-10 galenic-glass w-full mx-4 max-h-[90vh] flex flex-col',
+          width,
+        ].join(' ')}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-galenic-border">
-          <h2 className="text-sm font-mono font-semibold text-galenic-primary uppercase tracking-widest">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-galenic-border/60">
+          <h2 className="text-sm font-semibold text-galenic-primary uppercase tracking-widest">
             {title}
           </h2>
           <button
             onClick={onClose}
-            className="text-galenic-muted hover:text-galenic-primary transition-colors font-mono text-xl leading-none"
+            className="w-7 h-7 flex items-center justify-center rounded-md text-galenic-muted hover:text-galenic-primary hover:bg-galenic-elevated transition-colors text-lg leading-none"
           >
             ×
           </button>

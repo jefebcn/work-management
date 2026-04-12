@@ -4,32 +4,47 @@
 
 @layer base {
   html {
-    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
   }
 
   body {
-    @apply bg-galenic-base text-galenic-primary;
+    @apply text-galenic-primary;
+    background-color: #0F172A;
+    /* Subtle radial gradient — deep navy with a hint of slate at the top */
+    background-image: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(30, 41, 59, 0.8) 0%, transparent 70%);
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Tabular numbers for data fields */
+  .font-mono {
+    font-feature-settings: "tnum" 1;
+    font-variant-numeric: tabular-nums;
   }
 
   /* Custom scrollbar */
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    @apply bg-galenic-surface;
-  }
-  ::-webkit-scrollbar-thumb {
-    @apply bg-galenic-border rounded-full;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-galenic-muted;
-  }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-galenic-border rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-galenic-muted; }
 }
 
 @layer components {
-  .table-cell-mono {
-    @apply font-mono text-sm tabular-nums;
+  /* Standard card surface used by all panels and tables */
+  .galenic-card {
+    @apply bg-galenic-surface border border-galenic-border rounded-xl shadow-card;
+  }
+
+  /* Glassmorphism variant for overlays / modals */
+  .galenic-glass {
+    background: rgba(30, 41, 59, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    @apply border border-galenic-border/60 rounded-2xl shadow-dark;
+  }
+
+  /* Accent glow for active/focus states */
+  .galenic-glow {
+    box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.25), 0 0 16px rgba(45, 212, 191, 0.12);
   }
 }

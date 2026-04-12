@@ -45,7 +45,7 @@ export default function StabilityPage() {
       </div>
 
       {formulas.length === 0 ? (
-        <div className="bg-galenic-surface border border-galenic-border p-8 text-center">
+        <div className="bg-galenic-surface border border-galenic-border rounded-xl p-8 text-center">
           <p className="text-galenic-muted text-sm font-mono mb-4">
             Nessuna formula disponibile. Creane una nel Formulatore.
           </p>
@@ -59,7 +59,7 @@ export default function StabilityPage() {
             <button
               key={formula.id}
               onClick={() => openFormula(formula)}
-              className="w-full text-left bg-galenic-surface border border-galenic-border px-5 py-4 hover:border-galenic-accent transition-colors"
+              className="w-full text-left bg-galenic-surface border border-galenic-border rounded-xl px-5 py-4 hover:border-galenic-accent transition-colors"
             >
               <div className="flex items-center justify-between">
                 <div>

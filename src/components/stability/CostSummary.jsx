@@ -42,7 +42,7 @@ export default function CostSummary() {
     : 'intero lotto'
 
   return (
-    <div className="bg-galenic-surface border border-galenic-border">
+    <div className="bg-galenic-surface border border-galenic-border rounded-xl">
       <div className="px-5 py-3 border-b border-galenic-border">
         <h3 className="text-xs font-mono font-semibold text-galenic-primary uppercase tracking-widest">
           Riepilogo Economico

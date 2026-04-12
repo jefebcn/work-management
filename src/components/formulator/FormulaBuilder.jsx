@@ -80,7 +80,7 @@ export default function FormulaBuilder() {
       {hasWarnings && <WarningBanner warnings={computed.warnings} />}
 
       {/* Ingredients table */}
-      <div className="bg-galenic-surface border border-galenic-border">
+      <div className="bg-galenic-surface border border-galenic-border rounded-xl">
         <div className="px-5 py-3 border-b border-galenic-border flex items-center justify-between">
           <h3 className="text-xs font-mono font-semibold text-galenic-primary uppercase tracking-widest">
             Ingredienti
