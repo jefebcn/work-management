@@ -40,5 +40,9 @@ export function useInventory() {
     setRawMaterials(prev => prev.filter(rm => rm.id !== id))
   }
 
-  return { rawMaterials, addRawMaterial, updateRawMaterial, deleteRawMaterial }
+  function replaceRawMaterials(data) {
+    setRawMaterials(data)
+  }
+
+  return { rawMaterials, addRawMaterial, updateRawMaterial, deleteRawMaterial, replaceRawMaterials }
 }

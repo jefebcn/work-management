@@ -12,6 +12,12 @@ export function AppProvider({ children }) {
   const packagingStore = usePackaging()
   const formulaStore = useFormula(inventory.rawMaterials, packagingStore.packaging)
 
+  function importBackup({ rawMaterials, packaging, formulas }) {
+    inventory.replaceRawMaterials(rawMaterials)
+    packagingStore.replacePackaging(packaging)
+    formulaStore.replaceFormulas(formulas)
+  }
+
   const value = {
     // Module routing
     currentModule,
@@ -47,6 +53,9 @@ export function AppProvider({ children }) {
     setIngredientAmount: formulaStore.setIngredientAmount,
     setIngredientFiller: formulaStore.setIngredientFiller,
     setPackagingId:     formulaStore.setPackagingId,
+
+    // Backup / restore
+    importBackup,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

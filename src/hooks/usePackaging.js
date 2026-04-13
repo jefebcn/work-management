@@ -40,5 +40,9 @@ export function usePackaging() {
     setPackaging(prev => prev.filter(p => p.id !== id))
   }
 
-  return { packaging, addPackaging, updatePackaging, deletePackaging }
+  function replacePackaging(data) {
+    setPackaging(data)
+  }
+
+  return { packaging, addPackaging, updatePackaging, deletePackaging, replacePackaging }
 }

@@ -1,6 +1,7 @@
-import React from 'react'
-import { Package, FlaskConical, ShieldCheck } from 'lucide-react'
+import React, { useRef, useState } from 'react'
+import { Package, FlaskConical, ShieldCheck, Download, Upload } from 'lucide-react'
 import { useApp } from '../../context/AppContext.jsx'
+import { downloadBackup, parseBackup, mergeBackup } from '../../utils/backupRestore.js'
 
 const NAV_ITEMS = [
   {
@@ -24,11 +25,41 @@ const NAV_ITEMS = [
 ]
 
 export default function Sidebar({ isOpen, onClose }) {
-  const { currentModule, setCurrentModule, formulas } = useApp()
+  const { currentModule, setCurrentModule, formulas, rawMaterials, packaging, importBackup } = useApp()
+  const fileInputRef = useRef(null)
+  const [feedback, setFeedback] = useState(null)
 
   function navigate(id) {
     setCurrentModule(id)
     onClose()
+  }
+
+  function handleDownload() {
+    downloadBackup()
+  }
+
+  function handleFileChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = ev => {
+      const result = parseBackup(ev.target.result)
+      if (!result.ok) {
+        setFeedback({ type: 'err', msg: result.error })
+        setTimeout(() => setFeedback(null), 4000)
+        return
+      }
+      const merged = mergeBackup(result.data, { rawMaterials, packaging, formulas })
+      importBackup(merged)
+      const { added } = merged
+      setFeedback({
+        type: 'ok',
+        msg: `+${added.rawMaterials} mat. +${added.packaging} pack. +${added.formulas} formule`,
+      })
+      setTimeout(() => setFeedback(null), 4000)
+    }
+    reader.readAsText(file)
+    e.target.value = ''
   }
 
   return (
@@ -88,7 +119,41 @@ export default function Sidebar({ isOpen, onClose }) {
       </nav>
 
       {/* Footer */}
-      <div className="px-5 py-4 border-t border-galenic-border/60">
+      <div className="px-4 py-4 border-t border-galenic-border/60 space-y-2">
+        {feedback && (
+          <div className={`text-xs font-mono px-2 py-1.5 rounded-md leading-snug ${
+            feedback.type === 'ok'
+              ? 'bg-galenic-ok/10 text-galenic-ok'
+              : 'bg-galenic-danger/10 text-galenic-danger'
+          }`}>
+            {feedback.msg}
+          </div>
+        )}
+        <div className="flex gap-2">
+          <button
+            onClick={handleDownload}
+            title="Scarica backup (.json)"
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-mono text-galenic-muted hover:text-galenic-primary hover:bg-galenic-elevated/60 border border-galenic-border/50 transition-all"
+          >
+            <Download size={12} />
+            Backup
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            title="Ripristina da backup"
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-mono text-galenic-muted hover:text-galenic-primary hover:bg-galenic-elevated/60 border border-galenic-border/50 transition-all"
+          >
+            <Upload size={12} />
+            Ripristina
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+        </div>
         <div className="text-xs text-galenic-muted/40 font-mono">
           Pharmaceutical Formulator
         </div>

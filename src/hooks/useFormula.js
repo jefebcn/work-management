@@ -45,6 +45,11 @@ export function useFormula(rawMaterials, packaging) {
     if (activeFormula?.id === id) setActiveFormula(null)
   }
 
+  function replaceFormulas(data) {
+    setFormulas(data)
+    setActiveFormula(null)
+  }
+
   // ── Active formula session ─────────────────────────────────────────────────
 
   function newFormula() {
@@ -174,6 +179,7 @@ export function useFormula(rawMaterials, packaging) {
     formulas,
     saveFormula,
     deleteFormula,
+    replaceFormulas,
 
     // Active builder session
     activeFormula,
