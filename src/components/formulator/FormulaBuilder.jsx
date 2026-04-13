@@ -10,6 +10,7 @@ import StabilityPanel from '../stability/StabilityPanel.jsx'
 import CostSummary from '../stability/CostSummary.jsx'
 import Button from '../ui/Button.jsx'
 import ExportModal from './ExportModal.jsx'
+import FillVisualization from './FillVisualization.jsx'
 
 // Lazy-load the chart so recharts doesn't bloat the initial bundle
 const CompositionChart = lazy(() => import('./CompositionChart.jsx'))
@@ -91,6 +92,9 @@ export default function FormulaBuilder() {
 
       {/* Warnings */}
       {hasWarnings && <WarningBanner warnings={computed.warnings} />}
+
+      {/* Type-specific analysis: capsule volume, tablet friability, liquid density */}
+      <FillVisualization />
 
       {/* Ingredients table */}
       <div className="bg-galenic-surface border border-galenic-border rounded-xl overflow-hidden">

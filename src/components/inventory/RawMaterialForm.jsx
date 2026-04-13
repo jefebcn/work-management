@@ -20,6 +20,7 @@ const EMPTY_FORM = {
   activeNutrient: '',
   maxLimitMg: '',
   nrvReference: '',
+  densityGml: '',
 }
 
 function detectCategory(initial) {
@@ -49,6 +50,7 @@ export default function RawMaterialForm({ initial, onSubmit, onCancel }) {
         activeNutrient: initial.activeNutrient ?? '',
         maxLimitMg:     initial.maxLimitMg    ?? '',
         nrvReference:   initial.nrvReference  ?? '',
+        densityGml:     initial.densityGml    ?? '',
       })
       setCategory(detectCategory(initial))
     } else {
@@ -124,6 +126,7 @@ export default function RawMaterialForm({ initial, onSubmit, onCancel }) {
       activeNutrient: isEccipiente ? '' : form.activeNutrient.trim(),
       maxLimitMg:     isEccipiente ? 0 : (form.maxLimitMg !== '' ? parseFloat(form.maxLimitMg) : 0),
       nrvReference:   isEccipiente ? 0 : (form.nrvReference !== '' ? parseFloat(form.nrvReference) : 0),
+      densityGml:     form.densityGml !== '' ? parseFloat(form.densityGml) : undefined,
       category,
     })
   }
@@ -295,6 +298,26 @@ export default function RawMaterialForm({ initial, onSubmit, onCancel }) {
           />
         </div>
       )}
+
+      {/* Physical parameters — used for capsule volume calculations */}
+      <div>
+        <div className="text-xs font-mono text-galenic-muted uppercase tracking-wider mb-2">
+          Parametri Fisici
+        </div>
+        <div className="max-w-[200px]">
+          <Input
+            label="Densità Bulk (g/mL)"
+            type="number"
+            step="0.001"
+            min="0.01"
+            max="5"
+            value={form.densityGml}
+            onChange={e => set('densityGml', e.target.value)}
+            hint="Densità apparente polvere — per calcolo volume capsule (default: 0.6)"
+            placeholder="0.60"
+          />
+        </div>
+      </div>
 
       <div className="flex justify-end gap-3 pt-2 border-t border-galenic-border">
         <Button variant="ghost" type="button" onClick={onCancel}>

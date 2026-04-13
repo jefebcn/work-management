@@ -23,16 +23,19 @@ export default function IngredientRow({ computedRow, rowIndex = 0 }) {
 
   const unit          = activeFormula.targetWeightUnit || 'mg'
   const dosiAlGiorno  = activeFormula.dosiAlGiorno || 1
+  const isLiquido     = activeFormula.type === 'Liquidi'
+  const volumeMl      = isLiquido ? activeFormula.targetWeightMg / 1000 : 0
   const factor        = (rm.purity / 100) * (rm.titration / 100)
   const canApt        = factor > 0
   const isReadOnly    = computedRow.isFiller
 
   // ── Derived display values ─────────────────────────────────────────────────
 
-  const qtyPerDose = fromMg(computedRow.amountMg, unit)
-  const qtyPerDay  = qtyPerDose * dosiAlGiorno
-  const aptPerDose = computedRow.realNutrientContribution
-  const aptPerDay  = computedRow.dailyContribution
+  const qtyPerDose  = fromMg(computedRow.amountMg, unit)
+  const qtyPerDay   = qtyPerDose * dosiAlGiorno
+  const aptPerDose  = computedRow.realNutrientContribution
+  const aptPerDay   = computedRow.dailyContribution
+  const concMgMl    = isLiquido && volumeMl > 0 ? computedRow.amountMg / volumeMl : 0
 
   // ── Local string states — allow typing "0.001" without intermediate wipe ──
   // Controlled inputs with value={fmt(computed)} wipe "0" on every keystroke
@@ -44,7 +47,8 @@ export default function IngredientRow({ computedRow, rowIndex = 0 }) {
   const [qDieStr,  setQDieStr]  = useState('')
   const [aDoseStr, setADoseStr] = useState('')
   const [aDieStr,  setADieStr]  = useState('')
-  const focused = useRef(null)  // 'qDose' | 'qDie' | 'aDose' | 'aDie' | null
+  const [concStr,  setConcStr]  = useState('')
+  const focused = useRef(null)  // 'qDose' | 'qDie' | 'aDose' | 'aDie' | 'conc' | null
 
   // Format: strip trailing zeros, show empty string for zero/null
   function display(v) {
@@ -59,7 +63,8 @@ export default function IngredientRow({ computedRow, rowIndex = 0 }) {
     if (focused.current !== 'qDie')  setQDieStr(display(qtyPerDay))
     if (focused.current !== 'aDose') setADoseStr(display(aptPerDose))
     if (focused.current !== 'aDie')  setADieStr(display(aptPerDay))
-  }, [qtyPerDose, qtyPerDay, aptPerDose, aptPerDay])
+    if (focused.current !== 'conc')  setConcStr(display(concMgMl))
+  }, [qtyPerDose, qtyPerDay, aptPerDose, aptPerDay, concMgMl])
 
   // ── Four handlers, each back-calculating amountMg ─────────────────────────
 
@@ -149,6 +154,30 @@ export default function IngredientRow({ computedRow, rowIndex = 0 }) {
             />
             <span className={lbl}>{unit}/die</span>
           </div>
+
+          {/* mg/mL concentration — Liquidi only */}
+          {isLiquido && (
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number" step="any" min="0"
+                value={concStr}
+                onChange={!isReadOnly && volumeMl > 0 ? e => {
+                  setConcStr(e.target.value)
+                  const v = parseFloat(e.target.value)
+                  if (v > 0) setIngredientAmount(computedRow.rowId, v * volumeMl)
+                } : undefined}
+                onFocus={!isReadOnly && volumeMl > 0 ? () => { focused.current = 'conc' } : undefined}
+                onBlur={!isReadOnly && volumeMl > 0 ? e => {
+                  focused.current = null
+                  const v = parseFloat(e.target.value) || 0
+                  if (v >= 0) setIngredientAmount(computedRow.rowId, v * volumeMl)
+                } : undefined}
+                readOnly={isReadOnly || volumeMl === 0}
+                className={inputCls(!isReadOnly && volumeMl > 0) + ' border-t border-galenic-border/30 mt-0.5 pt-1.5'}
+              />
+              <span className={`${lbl} text-galenic-accent/70`}>mg/mL</span>
+            </div>
+          )}
         </div>
       </td>
 

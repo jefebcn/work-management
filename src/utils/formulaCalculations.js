@@ -3,6 +3,8 @@
  * All functions are pure — no side effects.
  */
 
+import { computeTypeValidation } from './formulaValidation.js'
+
 /**
  * Compute the auto-filler ingredient's weight so that the total equals targetWeightMg.
  * @param {number} targetWeightMg
@@ -158,6 +160,16 @@ export function computeFormulaResults(formula, rawMaterials, packaging = []) {
     }
   }
 
+  // Type-specific validation (capsule volume, tablet friability, liquid density)
+  const typeValidation = computeTypeValidation(formula, rows, rawMaterials)
+
+  // Promote critical type-validation warnings into the main list so they appear in WarningBanner
+  if (typeValidation?.warnings) {
+    typeValidation.warnings
+      .filter(w => w.severity === 'danger')
+      .forEach(w => warnings.push({ ...w, source: 'typeValidation' }))
+  }
+
   return {
     rows,
     totalWeightMg,
@@ -168,5 +180,6 @@ export function computeFormulaResults(formula, rawMaterials, packaging = []) {
     unitCost,
     packagingUnitCost,
     selectedPkg,
+    typeValidation,
   }
 }
