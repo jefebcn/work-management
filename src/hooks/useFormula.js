@@ -68,6 +68,10 @@ export function useFormula(rawMaterials, packaging) {
       pH: null,
       brix: null,
       status: 'draft',
+      batchSize: 1000,
+      markupPercent: 0,
+      version: 1,
+      parentId: null,
       createdAt: now,
       updatedAt: now,
     })
@@ -120,16 +124,101 @@ export function useFormula(rawMaterials, packaging) {
   function addIngredient(rawMaterialId) {
     setActiveFormula(prev => {
       if (!prev) return prev
-      // Prevent duplicates
       if (prev.ingredients.find(i => i.rawMaterialId === rawMaterialId)) return prev
       const newRow = {
         rowId: generateId('row'),
         rawMaterialId,
         amountMg: 0,
         isFiller: false,
+        antiCakingPercent: 0,
       }
       return { ...prev, ingredients: [...prev.ingredients, newRow] }
     })
+  }
+
+  /** Add ingredient and mark it as the auto-filler. */
+  function addFillerIngredient(rawMaterialId) {
+    setActiveFormula(prev => {
+      if (!prev) return prev
+      const existing = prev.ingredients.find(i => i.rawMaterialId === rawMaterialId)
+      if (existing) {
+        // Just mark it as filler (only one filler allowed)
+        return {
+          ...prev,
+          ingredients: prev.ingredients.map(i => ({
+            ...i,
+            isFiller: i.rowId === existing.rowId,
+          })),
+        }
+      }
+      // Add new ingredient as filler, clear any previous filler
+      return {
+        ...prev,
+        ingredients: [
+          ...prev.ingredients.map(i => ({ ...i, isFiller: false })),
+          {
+            rowId: generateId('row'),
+            rawMaterialId,
+            amountMg: 0,
+            isFiller: true,
+            antiCakingPercent: 0,
+          },
+        ],
+      }
+    })
+  }
+
+  /** Add ingredient with a fixed % of target weight (anti-caking / glidant). */
+  function addAntiCakingIngredient(rawMaterialId, antiCakingPercent) {
+    setActiveFormula(prev => {
+      if (!prev) return prev
+      const existing = prev.ingredients.find(i => i.rawMaterialId === rawMaterialId)
+      if (existing) {
+        return {
+          ...prev,
+          ingredients: prev.ingredients.map(i =>
+            i.rowId === existing.rowId ? { ...i, antiCakingPercent } : i
+          ),
+        }
+      }
+      return {
+        ...prev,
+        ingredients: [
+          ...prev.ingredients,
+          {
+            rowId: generateId('row'),
+            rawMaterialId,
+            amountMg: prev.targetWeightMg * (antiCakingPercent / 100),
+            isFiller: false,
+            antiCakingPercent,
+          },
+        ],
+      }
+    })
+  }
+
+  /** Save current formula then open a new version (snapshot). */
+  function createSnapshot() {
+    if (!activeFormula) return
+    saveFormula(activeFormula)
+
+    const familyId   = activeFormula.parentId || activeFormula.id
+    const allVersions = [...formulas, activeFormula]
+      .filter(f => f.id === familyId || f.parentId === familyId)
+    const maxVer = Math.max(1, ...allVersions.map(f => f.version || 1))
+
+    const now      = new Date().toISOString()
+    const snapshot = {
+      ...activeFormula,
+      id:        generateId('frm'),
+      version:   maxVer + 1,
+      parentId:  familyId,
+      status:    'draft',
+      createdAt: now,
+      updatedAt: now,
+    }
+    setFormulas(prev => [...prev, snapshot])
+    setActiveFormula(snapshot)
   }
 
   function removeIngredient(rowId) {
@@ -190,9 +279,12 @@ export function useFormula(rawMaterials, packaging) {
     setFormulaField,
     setTargetWeight,
     addIngredient,
+    addFillerIngredient,
+    addAntiCakingIngredient,
     removeIngredient,
     setIngredientAmount,
     setIngredientFiller,
     setPackagingId,
+    createSnapshot,
   }
 }

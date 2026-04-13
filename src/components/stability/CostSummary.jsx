@@ -41,6 +41,12 @@ export default function CostSummary() {
     ? `${qtyPerPackDisplay % 1 === 0 ? qtyPerPackDisplay.toFixed(0) : qtyPerPackDisplay.toFixed(3)} ${qtyPerPackUnit} per unità`
     : 'intero lotto'
 
+  // Pricing engine
+  const markupPercent  = activeFormula.markupPercent || 0
+  const sellingPrice   = markupPercent > 0 ? finalUnitCost * (1 + markupPercent / 100) : null
+  const grossMarginEur = sellingPrice ? sellingPrice - finalUnitCost : null
+  const rosPercent     = sellingPrice ? ((sellingPrice - finalUnitCost) / sellingPrice) * 100 : null
+
   return (
     <div className="bg-galenic-surface border border-galenic-border rounded-xl">
       <div className="px-5 py-3 border-b border-galenic-border">
@@ -142,6 +148,77 @@ export default function CostSummary() {
           </div>
         </div>
       </div>
+
+      {/* ── Pricing Engine ─────────────────────────────────────────────── */}
+      <div className="px-5 pb-5 border-t border-galenic-border pt-4">
+        <div className="text-xs font-mono text-galenic-muted uppercase tracking-wider mb-3">
+          Pricing Engine
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end">
+          {/* Markup input */}
+          <div>
+            <div className="text-xs font-mono text-galenic-muted mb-1">Markup desiderato</div>
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number"
+                step="0.5"
+                min="0"
+                max="10000"
+                value={markupPercent || ''}
+                onChange={e => setFormulaField('markupPercent', parseFloat(e.target.value) || 0)}
+                placeholder="es. 30"
+                className="flex-1 bg-galenic-elevated border border-galenic-border text-galenic-primary font-mono text-sm px-3 py-2 outline-none focus:border-galenic-accent transition-colors rounded-lg"
+              />
+              <span className="text-xs font-mono text-galenic-muted shrink-0">%</span>
+            </div>
+            <div className="text-xs font-mono text-galenic-muted/50 mt-0.5">
+              COGS: € {finalUnitCost.toFixed(4)}
+            </div>
+          </div>
+
+          {/* Selling price */}
+          <div className={sellingPrice ? '' : 'opacity-30'}>
+            <div className="text-xs font-mono text-galenic-muted mb-1">Prezzo di Vendita Suggerito</div>
+            <div className="text-xl font-mono font-bold text-galenic-ok tabular-nums">
+              {sellingPrice ? `€ ${sellingPrice.toFixed(4)}` : '—'}
+            </div>
+            {grossMarginEur && (
+              <div className="text-xs font-mono text-galenic-muted/60 mt-0.5">
+                Margine: € {grossMarginEur.toFixed(4)}
+              </div>
+            )}
+          </div>
+
+          {/* ROS (return on sales / margine su prezzo) */}
+          <div className={rosPercent ? '' : 'opacity-30'}>
+            <div className="text-xs font-mono text-galenic-muted mb-1">Margine Lordo (ROS)</div>
+            <div className="text-xl font-mono font-bold text-galenic-ok tabular-nums">
+              {rosPercent ? `${rosPercent.toFixed(1)}%` : '—'}
+            </div>
+            {rosPercent && (
+              <div className="text-xs font-mono text-galenic-muted/60 mt-0.5">
+                su prezzo di vendita
+              </div>
+            )}
+          </div>
+
+          {/* Batch revenue estimate */}
+          {sellingPrice && (
+            <div>
+              <div className="text-xs font-mono text-galenic-muted mb-1">
+                Ricavo Lotto ({(activeFormula.batchSize || 1000).toLocaleString('it-IT')} u.)
+              </div>
+              <div className="text-xl font-mono font-bold text-galenic-primary tabular-nums">
+                € {(sellingPrice * (activeFormula.batchSize || 1000)).toFixed(2)}
+              </div>
+              <div className="text-xs font-mono text-galenic-muted/60 mt-0.5">
+                Utile lordo: € {(grossMarginEur * (activeFormula.batchSize || 1000)).toFixed(2)}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
     </div>
   )
 }

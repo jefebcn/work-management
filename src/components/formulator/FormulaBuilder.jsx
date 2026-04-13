@@ -1,5 +1,5 @@
 import React, { useState, Suspense, lazy } from 'react'
-import { AlertTriangle, Download, Save, CheckCircle, FileText } from 'lucide-react'
+import { AlertTriangle, Download, Save, CheckCircle, Printer, Copy } from 'lucide-react'
 import { useApp } from '../../context/AppContext.jsx'
 import FormulaHeader from './FormulaHeader.jsx'
 import IngredientRow from './IngredientRow.jsx'
@@ -11,6 +11,9 @@ import CostSummary from '../stability/CostSummary.jsx'
 import Button from '../ui/Button.jsx'
 import ExportModal from './ExportModal.jsx'
 import FillVisualization from './FillVisualization.jsx'
+import BatchScalingPanel from './BatchScalingPanel.jsx'
+import QuickActions from './QuickActions.jsx'
+import { openLabReportWindow } from '../../utils/pdfReport.js'
 
 // Lazy-load the chart so recharts doesn't bloat the initial bundle
 const CompositionChart = lazy(() => import('./CompositionChart.jsx'))
@@ -23,6 +26,7 @@ export default function FormulaBuilder() {
     resetActiveFormula,
     saveFormula,
     setFormulaField,
+    createSnapshot,
   } = useApp()
   const [showExport, setShowExport] = useState(false)
 
@@ -72,9 +76,29 @@ export default function FormulaBuilder() {
             </span>
           </label>
 
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => openLabReportWindow(activeFormula, computed, rawMaterials)}
+            title="Stampa foglio di lavorazione PDF"
+          >
+            <Printer size={14} className="mr-1.5" />
+            <span className="hidden sm:inline">Stampa</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={createSnapshot}
+            title="Crea nuova versione (snapshot)"
+          >
+            <Copy size={14} className="mr-1.5" />
+            <span className="hidden sm:inline">
+              v{activeFormula.version || 1} → v{(activeFormula.version || 1) + 1}
+            </span>
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => setShowExport(true)}>
             <Download size={14} className="mr-1.5" />
-            Esporta
+            <span className="hidden sm:inline">Esporta</span>
           </Button>
           <Button variant="subtle" size="sm" onClick={() => handleSave()}>
             <Save size={14} className="mr-1.5" />
@@ -151,6 +175,9 @@ export default function FormulaBuilder() {
           </div>
         )}
 
+        {/* Quick actions: "Colma a volume" + anti-caking auto-insert */}
+        {activeFormula.ingredients.length > 0 && <QuickActions />}
+
         {/* Ingredient selector */}
         <IngredientSelector />
       </div>
@@ -166,6 +193,9 @@ export default function FormulaBuilder() {
 
       {/* NRV summary */}
       <NRVSummaryPanel />
+
+      {/* Batch scaling */}
+      <BatchScalingPanel />
 
       {/* Stability panel — only for Liquidi */}
       {activeFormula.type === 'Liquidi' && <StabilityPanel />}

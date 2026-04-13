@@ -88,11 +88,16 @@ export function computeFormulaResults(formula, rawMaterials, packaging = []) {
   const pkgMap = {}
   packaging.forEach(p => { pkgMap[p.id] = p })
 
-  // Separate filler from non-fillers
-  const nonFillerIngredients = formula.ingredients.filter(i => !i.isFiller)
+  // Step 1 — Resolve anti-caking amounts (fixed % of target weight)
+  const withAntiCaking = formula.ingredients.map(ing =>
+    ing.antiCakingPercent > 0
+      ? { ...ing, amountMg: formula.targetWeightMg * (ing.antiCakingPercent / 100) }
+      : ing
+  )
 
-  // Resolve ingredient amounts (filler gets auto-computed)
-  const resolvedIngredients = formula.ingredients.map(ing => {
+  // Step 2 — Resolve filler (target − sum of all non-filler, including anti-caking)
+  const nonFillerIngredients = withAntiCaking.filter(i => !i.isFiller)
+  const resolvedIngredients  = withAntiCaking.map(ing => {
     if (ing.isFiller) {
       return {
         ...ing,
