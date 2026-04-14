@@ -2,15 +2,19 @@ import React, { createContext, useContext, useState } from 'react'
 import { useInventory } from '../hooks/useInventory.js'
 import { usePackaging } from '../hooks/usePackaging.js'
 import { useFormula } from '../hooks/useFormula.js'
+import { useAuth } from './AuthContext.jsx'
 
 const AppContext = createContext(null)
 
 export function AppProvider({ children }) {
+  const { user } = useAuth()
+  const userId = user?.id ?? null
+
   const [currentModule, setCurrentModule] = useState('inventory')
 
-  const inventory = useInventory()
-  const packagingStore = usePackaging()
-  const formulaStore = useFormula(inventory.rawMaterials, packagingStore.packaging)
+  const inventory      = useInventory(userId)
+  const packagingStore = usePackaging(userId)
+  const formulaStore   = useFormula(inventory.rawMaterials, packagingStore.packaging, userId)
 
   function importBackup({ rawMaterials, packaging, formulas }) {
     inventory.replaceRawMaterials(rawMaterials)
@@ -22,6 +26,9 @@ export function AppProvider({ children }) {
     // Module routing
     currentModule,
     setCurrentModule,
+
+    // Auth (exposed for convenience, e.g. Sidebar)
+    user,
 
     // Inventory
     rawMaterials:       inventory.rawMaterials,
@@ -39,15 +46,16 @@ export function AppProvider({ children }) {
     formulas:           formulaStore.formulas,
     saveFormula:        formulaStore.saveFormula,
     deleteFormula:      formulaStore.deleteFormula,
+    autoSaving:         formulaStore.autoSaving,
 
     // Active builder session
-    activeFormula:      formulaStore.activeFormula,
-    computed:           formulaStore.computed,
-    newFormula:         formulaStore.newFormula,
-    openFormula:        formulaStore.openFormula,
-    resetActiveFormula: formulaStore.resetActiveFormula,
-    setFormulaField:    formulaStore.setFormulaField,
-    setTargetWeight:    formulaStore.setTargetWeight,
+    activeFormula:           formulaStore.activeFormula,
+    computed:                formulaStore.computed,
+    newFormula:              formulaStore.newFormula,
+    openFormula:             formulaStore.openFormula,
+    resetActiveFormula:      formulaStore.resetActiveFormula,
+    setFormulaField:         formulaStore.setFormulaField,
+    setTargetWeight:         formulaStore.setTargetWeight,
     addIngredient:           formulaStore.addIngredient,
     addFillerIngredient:     formulaStore.addFillerIngredient,
     addAntiCakingIngredient: formulaStore.addAntiCakingIngredient,
