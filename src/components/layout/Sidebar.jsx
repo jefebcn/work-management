@@ -1,7 +1,6 @@
 import React, { useRef, useState } from 'react'
-import { Package, FlaskConical, Download, Upload, LogOut, Cloud, Loader } from 'lucide-react'
+import { Package, FlaskConical, Download, Upload, HardDrive } from 'lucide-react'
 import { useApp } from '../../context/AppContext.jsx'
-import { useAuth } from '../../context/AuthContext.jsx'
 import { downloadBackup, parseBackup, mergeBackup } from '../../utils/backupRestore.js'
 
 const NAV_ITEMS = [
@@ -20,12 +19,9 @@ const NAV_ITEMS = [
 ]
 
 export default function Sidebar({ isOpen, onClose }) {
-  const { currentModule, setCurrentModule, formulas, rawMaterials, packaging, importBackup, autoSaving } = useApp()
-  const { user, signOut } = useAuth()
-
+  const { currentModule, setCurrentModule, formulas, rawMaterials, packaging, importBackup, lastSaved } = useApp()
   const fileInputRef = useRef(null)
-  const [feedback,   setFeedback]   = useState(null)
-  const [loggingOut, setLoggingOut] = useState(false)
+  const [feedback, setFeedback] = useState(null)
 
   function navigate(id) {
     setCurrentModule(id)
@@ -59,15 +55,6 @@ export default function Sidebar({ isOpen, onClose }) {
     reader.readAsText(file)
     e.target.value = ''
   }
-
-  async function handleSignOut() {
-    setLoggingOut(true)
-    try { await signOut() } catch { /* ignore */ }
-    setLoggingOut(false)
-  }
-
-  // Avatar letter: first char of email
-  const avatarLetter = user?.email?.[0]?.toUpperCase() ?? '?'
 
   return (
     <aside className={[
@@ -128,14 +115,6 @@ export default function Sidebar({ isOpen, onClose }) {
       {/* Footer */}
       <div className="px-4 py-4 border-t border-galenic-border/60 space-y-2">
 
-        {/* Auto-save indicator */}
-        {autoSaving && (
-          <div className="flex items-center gap-1.5 text-xs font-mono text-galenic-muted/60 px-1">
-            <Loader size={10} className="animate-spin" />
-            Salvataggio cloud…
-          </div>
-        )}
-
         {/* Feedback message */}
         {feedback && (
           <div className={`text-xs font-mono px-2 py-1.5 rounded-md leading-snug ${
@@ -151,7 +130,7 @@ export default function Sidebar({ isOpen, onClose }) {
         <div className="flex gap-2">
           <button
             onClick={handleDownload}
-            title="Scarica backup (.json)"
+            title="Esporta backup (.json)"
             className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-mono text-galenic-muted hover:text-galenic-primary hover:bg-galenic-elevated/60 border border-galenic-border/50 transition-all"
           >
             <Download size={12} />
@@ -159,11 +138,11 @@ export default function Sidebar({ isOpen, onClose }) {
           </button>
           <button
             onClick={() => fileInputRef.current?.click()}
-            title="Ripristina da backup"
+            title="Importa backup"
             className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-mono text-galenic-muted hover:text-galenic-primary hover:bg-galenic-elevated/60 border border-galenic-border/50 transition-all"
           >
             <Upload size={12} />
-            Ripristina
+            Importa
           </button>
           <input
             ref={fileInputRef}
@@ -174,40 +153,14 @@ export default function Sidebar({ isOpen, onClose }) {
           />
         </div>
 
-        {/* User info + logout */}
-        {user && (
-          <div className="flex items-center gap-2 pt-1">
-            {/* Avatar */}
-            <div className="w-7 h-7 rounded-full bg-galenic-accent/20 border border-galenic-accent/30 flex items-center justify-center text-xs font-bold text-galenic-accent shrink-0">
-              {avatarLetter}
-            </div>
-            {/* Email */}
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-mono text-galenic-primary truncate leading-snug">
-                {user.email}
-              </div>
-              <div className="flex items-center gap-1 mt-0.5">
-                <Cloud size={9} className="text-galenic-ok shrink-0" />
-                <span className="text-xs font-mono text-galenic-muted/50">sincronizzato</span>
-              </div>
-            </div>
-            {/* Logout */}
-            <button
-              onClick={handleSignOut}
-              disabled={loggingOut}
-              title="Esci"
-              className="shrink-0 p-1.5 rounded-lg text-galenic-muted hover:text-galenic-danger hover:bg-galenic-danger/10 transition-all disabled:opacity-40"
-            >
-              {loggingOut
-                ? <Loader size={13} className="animate-spin" />
-                : <LogOut size={13} />
-              }
-            </button>
-          </div>
-        )}
-
-        <div className="text-xs text-galenic-muted/30 font-mono">
-          Pharmaceutical Formulator
+        {/* Local save indicator */}
+        <div className="flex items-center gap-1.5 text-xs font-mono text-galenic-muted/50 px-0.5">
+          <HardDrive size={10} className={lastSaved ? 'text-galenic-ok/70' : 'text-galenic-muted/30'} />
+          <span>
+            {lastSaved
+              ? `Salvato in locale · ${lastSaved.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`
+              : 'Dati salvati in locale'}
+          </span>
         </div>
       </div>
     </aside>
