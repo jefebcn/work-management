@@ -1,4 +1,5 @@
-import React from 'react'
+import React, { useState, Suspense, lazy } from 'react'
+import { AlertTriangle, Download, Save, CheckCircle, Printer, Copy } from 'lucide-react'
 import { useApp } from '../../context/AppContext.jsx'
 import FormulaHeader from './FormulaHeader.jsx'
 import IngredientRow from './IngredientRow.jsx'
@@ -8,15 +9,26 @@ import NRVSummaryPanel from './NRVSummaryPanel.jsx'
 import StabilityPanel from '../stability/StabilityPanel.jsx'
 import CostSummary from '../stability/CostSummary.jsx'
 import Button from '../ui/Button.jsx'
+import ExportModal from './ExportModal.jsx'
+import FillVisualization from './FillVisualization.jsx'
+import BatchScalingPanel from './BatchScalingPanel.jsx'
+import QuickActions from './QuickActions.jsx'
+import { openLabReportWindow } from '../../utils/pdfReport.js'
+
+// Lazy-load the chart so recharts doesn't bloat the initial bundle
+const CompositionChart = lazy(() => import('./CompositionChart.jsx'))
 
 export default function FormulaBuilder() {
   const {
     activeFormula,
     computed,
+    rawMaterials,
     resetActiveFormula,
     saveFormula,
     setFormulaField,
+    createSnapshot,
   } = useApp()
+  const [showExport, setShowExport] = useState(false)
 
   if (!activeFormula) return null
 
@@ -24,9 +36,11 @@ export default function FormulaBuilder() {
     saveFormula({ ...activeFormula, status })
   }
 
-  const hasWarnings = computed?.warnings?.length > 0
-  const totalPercent = computed?.totalPercent ?? 0
+  const hasWarnings   = computed?.warnings?.length > 0
+  const totalPercent  = computed?.totalPercent ?? 0
   const totalWeightMg = computed?.totalWeightMg ?? 0
+  const isOverweight  = totalPercent > 100.05
+  const isBalanced    = totalPercent >= 99.9 && totalPercent <= 100.1
 
   return (
     <div className="space-y-4">
@@ -35,8 +49,8 @@ export default function FormulaBuilder() {
         <Button variant="ghost" size="sm" onClick={resetActiveFormula}>
           ← Torna alla Lista
         </Button>
-        <div className="flex items-center gap-3">
-          {/* Status toggle */}
+        <div className="flex items-center gap-2">
+          {/* Finalized toggle */}
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
@@ -46,29 +60,53 @@ export default function FormulaBuilder() {
             />
             <span
               className={[
-                'w-8 h-4 flex items-center px-0.5 transition-colors',
-                activeFormula.status === 'finalized'
-                  ? 'bg-galenic-ok'
-                  : 'bg-galenic-elevated border border-galenic-border',
+                'w-8 h-4 flex items-center px-0.5 rounded-full transition-colors',
+                activeFormula.status === 'finalized' ? 'bg-galenic-ok' : 'bg-galenic-elevated border border-galenic-border',
               ].join(' ')}
             >
               <span
                 className={[
-                  'w-3 h-3 bg-galenic-primary transition-transform',
+                  'w-3 h-3 rounded-full bg-galenic-surface transition-transform shadow-sm',
                   activeFormula.status === 'finalized' ? 'translate-x-4' : 'translate-x-0',
                 ].join(' ')}
               />
             </span>
-            <span className="text-xs font-mono text-galenic-muted">
+            <span className="text-xs font-mono text-galenic-muted hidden sm:inline">
               {activeFormula.status === 'finalized' ? 'Finalizzata' : 'Bozza'}
             </span>
           </label>
 
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => openLabReportWindow(activeFormula, computed, rawMaterials)}
+            title="Stampa foglio di lavorazione PDF"
+          >
+            <Printer size={14} className="mr-1.5" />
+            <span className="hidden sm:inline">Stampa</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={createSnapshot}
+            title="Crea nuova versione (snapshot)"
+          >
+            <Copy size={14} className="mr-1.5" />
+            <span className="hidden sm:inline">
+              v{activeFormula.version || 1} → v{(activeFormula.version || 1) + 1}
+            </span>
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setShowExport(true)}>
+            <Download size={14} className="mr-1.5" />
+            <span className="hidden sm:inline">Esporta</span>
+          </Button>
           <Button variant="subtle" size="sm" onClick={() => handleSave()}>
+            <Save size={14} className="mr-1.5" />
             Salva
           </Button>
           <Button variant="primary" size="sm" onClick={() => handleSave('finalized')}>
-            Salva & Finalizza
+            <CheckCircle size={14} className="mr-1.5" />
+            Finalizza
           </Button>
         </div>
       </div>
@@ -79,68 +117,94 @@ export default function FormulaBuilder() {
       {/* Warnings */}
       {hasWarnings && <WarningBanner warnings={computed.warnings} />}
 
+      {/* Type-specific analysis: capsule volume, tablet friability, liquid density */}
+      <FillVisualization />
+
       {/* Ingredients table */}
-      <div className="bg-galenic-surface border border-galenic-border">
-        <div className="px-5 py-3 border-b border-galenic-border flex items-center justify-between">
+      <div className="bg-galenic-surface border border-galenic-border rounded-xl overflow-hidden">
+        {/* Table header bar */}
+        <div className="px-5 py-3 border-b border-galenic-border bg-galenic-elevated/50 flex items-center justify-between">
           <h3 className="text-xs font-mono font-semibold text-galenic-primary uppercase tracking-widest">
             Ingredienti
           </h3>
           <div className="flex items-center gap-4 text-xs font-mono">
             <span className="text-galenic-muted">
               Totale:{' '}
-              <span className={`font-semibold ${totalPercent > 100 ? 'text-galenic-danger' : 'text-galenic-primary'}`}>
+              <span className={`font-semibold ${isOverweight ? 'text-galenic-danger' : 'text-galenic-primary'}`}>
+                {isOverweight && <AlertTriangle size={11} className="inline mr-1 mb-px" />}
                 {totalPercent.toFixed(2)}%
               </span>
             </span>
-            <span className="text-galenic-muted">
-              {totalWeightMg.toFixed(1)} mg / {activeFormula.targetWeightMg} mg
+            <span className="text-galenic-muted hidden sm:inline">
+              {totalWeightMg.toFixed(1)} / {activeFormula.targetWeightMg} mg
             </span>
-            {totalPercent >= 99.9 && totalPercent <= 100.1 && (
-              <span className="text-galenic-ok">✓ Bilanciata</span>
+            {isBalanced && (
+              <span className="text-galenic-ok flex items-center gap-1">
+                <CheckCircle size={11} />
+                Bilanciata
+              </span>
             )}
           </div>
         </div>
 
-        {/* Table */}
+        {/* Scrollable table with sticky header */}
         {activeFormula.ingredients.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm font-mono">
-              <thead>
+          <div className="overflow-x-auto overflow-y-auto max-h-[28rem]">
+            <table className="w-full text-sm font-mono galenic-table">
+              <thead className="sticky top-0 z-10">
                 <tr className="bg-galenic-elevated border-b border-galenic-border">
-                  <th className="px-4 py-3 text-left text-xs text-galenic-muted uppercase tracking-wider">Materia Prima</th>
-                  <th className="px-4 py-3 text-left text-xs text-galenic-muted uppercase tracking-wider">Quantità</th>
-                  <th className="px-4 py-3 text-center text-xs text-galenic-muted uppercase tracking-wider">% Peso</th>
-                  <th className="px-4 py-3 text-left text-xs text-galenic-muted uppercase tracking-wider">Apporto Reale</th>
-                  <th className="px-4 py-3 text-center text-xs text-galenic-muted uppercase tracking-wider">VNR %</th>
-                  <th className="px-4 py-3 text-center text-xs text-galenic-muted uppercase tracking-wider">Fill</th>
+                  <th className="px-4 py-3 text-left text-xs text-galenic-muted uppercase tracking-wider font-medium whitespace-nowrap">Materia Prima</th>
+                  <th className="px-4 py-3 text-left text-xs text-galenic-muted uppercase tracking-wider font-medium whitespace-nowrap">Quantità</th>
+                  <th className="px-4 py-3 text-center text-xs text-galenic-muted uppercase tracking-wider font-medium whitespace-nowrap">% Peso</th>
+                  <th className="px-4 py-3 text-left text-xs text-galenic-muted uppercase tracking-wider font-medium whitespace-nowrap">Apporto Reale</th>
+                  <th className="px-4 py-3 text-center text-xs text-galenic-muted uppercase tracking-wider font-medium whitespace-nowrap">VNR %</th>
+                  <th className="px-4 py-3 text-center text-xs text-galenic-muted uppercase tracking-wider font-medium whitespace-nowrap">Fill</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
               <tbody>
-                {(computed?.rows || []).map(row => (
-                  <IngredientRow key={row.rowId} computedRow={row} />
+                {(computed?.rows || []).map((row, index) => (
+                  <IngredientRow key={row.rowId} computedRow={row} rowIndex={index} />
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <div className="py-8 text-center text-xs text-galenic-muted font-mono">
+          <div className="py-10 text-center text-xs text-galenic-muted font-mono">
             Nessun ingrediente. Aggiungi la prima materia prima.
           </div>
         )}
+
+        {/* Quick actions: "Colma a volume" + anti-caking auto-insert */}
+        {activeFormula.ingredients.length > 0 && <QuickActions />}
 
         {/* Ingredient selector */}
         <IngredientSelector />
       </div>
 
+      {/* Composition chart — lazy loaded, only when there are ingredients */}
+      {computed?.rows?.length > 0 && (
+        <Suspense fallback={
+          <div className="h-44 bg-galenic-surface border border-galenic-border rounded-xl animate-pulse" />
+        }>
+          <CompositionChart rows={computed.rows} rawMaterials={rawMaterials} />
+        </Suspense>
+      )}
+
       {/* NRV summary */}
       <NRVSummaryPanel />
+
+      {/* Batch scaling */}
+      <BatchScalingPanel />
 
       {/* Stability panel — only for Liquidi */}
       {activeFormula.type === 'Liquidi' && <StabilityPanel />}
 
       {/* Cost summary */}
       <CostSummary />
+
+      {/* Export modal */}
+      <ExportModal isOpen={showExport} onClose={() => setShowExport(false)} />
     </div>
   )
 }

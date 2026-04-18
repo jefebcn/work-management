@@ -94,7 +94,7 @@ export default function RawMaterialsPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-galenic-surface border border-galenic-border">
+      <div className="bg-galenic-surface border border-galenic-border rounded-xl">
         <RawMaterialsTable
           rawMaterials={filtered}
           onEdit={handleEdit}

@@ -3,6 +3,8 @@
  * All functions are pure — no side effects.
  */
 
+import { computeTypeValidation } from './formulaValidation.js'
+
 /**
  * Compute the auto-filler ingredient's weight so that the total equals targetWeightMg.
  * @param {number} targetWeightMg
@@ -29,8 +31,10 @@ export function computeIngredientRow(ingredient, rawMaterial, targetWeightMg, do
     targetWeightMg > 0 ? (amountMg / targetWeightMg) * 100 : 0
 
   // Active nutrient per dose in mg = amountMg × purity% × titration%
-  const realNutrientContribution =
-    amountMg * ((rawMaterial.purity || 100) / 100) * ((rawMaterial.titration || 100) / 100)
+  // Excipients (no activeNutrient) contribute 0 — they are inert
+  const realNutrientContribution = rawMaterial.activeNutrient
+    ? amountMg * ((rawMaterial.purity || 100) / 100) * ((rawMaterial.titration || 100) / 100)
+    : 0
 
   // Daily active nutrient = per-dose contribution × doses/day
   const dailyContribution = realNutrientContribution * (dosiAlGiorno || 1)
@@ -84,11 +88,16 @@ export function computeFormulaResults(formula, rawMaterials, packaging = []) {
   const pkgMap = {}
   packaging.forEach(p => { pkgMap[p.id] = p })
 
-  // Separate filler from non-fillers
-  const nonFillerIngredients = formula.ingredients.filter(i => !i.isFiller)
+  // Step 1 — Resolve anti-caking amounts (fixed % of target weight)
+  const withAntiCaking = formula.ingredients.map(ing =>
+    ing.antiCakingPercent > 0
+      ? { ...ing, amountMg: formula.targetWeightMg * (ing.antiCakingPercent / 100) }
+      : ing
+  )
 
-  // Resolve ingredient amounts (filler gets auto-computed)
-  const resolvedIngredients = formula.ingredients.map(ing => {
+  // Step 2 — Resolve filler (target − sum of all non-filler, including anti-caking)
+  const nonFillerIngredients = withAntiCaking.filter(i => !i.isFiller)
+  const resolvedIngredients  = withAntiCaking.map(ing => {
     if (ing.isFiller) {
       return {
         ...ing,
@@ -156,6 +165,16 @@ export function computeFormulaResults(formula, rawMaterials, packaging = []) {
     }
   }
 
+  // Type-specific validation (capsule volume, tablet friability, liquid density)
+  const typeValidation = computeTypeValidation(formula, rows, rawMaterials)
+
+  // Promote critical type-validation warnings into the main list so they appear in WarningBanner
+  if (typeValidation?.warnings) {
+    typeValidation.warnings
+      .filter(w => w.severity === 'danger')
+      .forEach(w => warnings.push({ ...w, source: 'typeValidation' }))
+  }
+
   return {
     rows,
     totalWeightMg,
@@ -166,5 +185,6 @@ export function computeFormulaResults(formula, rawMaterials, packaging = []) {
     unitCost,
     packagingUnitCost,
     selectedPkg,
+    typeValidation,
   }
 }

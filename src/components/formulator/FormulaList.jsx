@@ -19,9 +19,19 @@ export default function FormulaList() {
     {
       key: 'name',
       label: 'Nome Formula',
-      render: row => (
-        <span className="text-galenic-primary font-medium">{row.name}</span>
-      ),
+      render: row => {
+        const ver = row.version || 1
+        return (
+          <div className="flex items-center gap-2">
+            <span className="text-galenic-primary font-medium">{row.name}</span>
+            {ver > 1 && (
+              <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-galenic-accent/10 text-galenic-accent border border-galenic-accent/20">
+                v{ver}
+              </span>
+            )}
+          </div>
+        )
+      },
     },
     {
       key: 'type',
@@ -105,7 +115,7 @@ export default function FormulaList() {
         </Button>
       </div>
 
-      <div className="bg-galenic-surface border border-galenic-border">
+      <div className="bg-galenic-surface border border-galenic-border rounded-xl">
         <Table
           columns={columns}
           rows={formulas}

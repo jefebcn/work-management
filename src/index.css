@@ -2,34 +2,106 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ══════════════════════════════════════════════════════════════
+   Theme tokens — CSS custom properties
+   Light (default): Medical-Tech blue + clean white surfaces
+   Dark (.dark on <html>): High-tech lab navy
+   ══════════════════════════════════════════════════════════════ */
+
+:root {
+  --gc-base:    248 250 252;   /* #F8FAFC slate-50   */
+  --gc-surface: 255 255 255;   /* #FFFFFF white       */
+  --gc-elevated:241 245 249;   /* #F1F5F9 slate-100   */
+  --gc-border:  226 232 240;   /* #E2E8F0 slate-200   */
+  --gc-primary: 15  23  42;    /* #0F172A slate-900   */
+  --gc-muted:   100 116 139;   /* #64748B slate-500   */
+  --gc-accent:  37  99  235;   /* #2563EB blue-600    */
+  --gc-danger:  239 68  68;    /* #EF4444 red-500     */
+  --gc-ok:      16  185 129;   /* #10B981 emerald-500 */
+  --gc-warning: 245 158 11;    /* #F59E0B amber-500   */
+
+  --body-overlay:   rgba(37, 99, 235, 0.05);
+  --shadow-glow:    0 0 24px rgba(37, 99, 235, 0.20);
+  --shadow-glow-sm: 0 0 12px rgba(37, 99, 235, 0.14);
+  --shadow-dark:    0 8px 32px rgba(0, 0, 0, 0.12);
+  --shadow-card:    0 1px 4px rgba(0, 0, 0, 0.06), 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.dark {
+  --gc-base:    15  23  42;    /* #0F172A slate-900   */
+  --gc-surface: 30  41  59;    /* #1E293B slate-800   */
+  --gc-elevated:38  51  72;    /* #263348 custom      */
+  --gc-border:  51  65  85;    /* #334155 slate-700   */
+  --gc-primary: 248 250 252;   /* #F8FAFC slate-50    */
+  --gc-muted:   148 163 184;   /* #94A3B8 slate-400   */
+  --gc-accent:  59  130 246;   /* #3B82F6 blue-500    */
+  --gc-danger:  248 113 113;   /* #F87171 red-400     */
+  --gc-ok:      52  211 153;   /* #34D399 emerald-400 */
+  --gc-warning: 251 191 36;    /* #FBBF24 amber-400   */
+
+  --body-overlay:   rgba(30, 41, 59, 0.80);
+  --shadow-glow:    0 0 24px rgba(59, 130, 246, 0.25);
+  --shadow-glow-sm: 0 0 12px rgba(59, 130, 246, 0.18);
+  --shadow-dark:    0 8px 32px rgba(0, 0, 0, 0.50);
+  --shadow-card:    0 2px 12px rgba(0, 0, 0, 0.30);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Base
+   ══════════════════════════════════════════════════════════════ */
 @layer base {
   html {
-    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
   }
 
   body {
-    @apply bg-galenic-base text-galenic-primary;
+    @apply text-galenic-primary bg-galenic-base;
+    background-image: radial-gradient(
+      ellipse 80% 50% at 50% -10%,
+      var(--body-overlay) 0%,
+      transparent 70%
+    );
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Custom scrollbar */
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+  .font-mono {
+    font-feature-settings: "tnum" 1;
+    font-variant-numeric: tabular-nums;
   }
-  ::-webkit-scrollbar-track {
-    @apply bg-galenic-surface;
-  }
-  ::-webkit-scrollbar-thumb {
-    @apply bg-galenic-border rounded-full;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-galenic-muted;
-  }
+
+  ::-webkit-scrollbar        { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track  { background: transparent; }
+  ::-webkit-scrollbar-thumb  { @apply bg-galenic-border rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-galenic-muted; }
 }
 
+/* ══════════════════════════════════════════════════════════════
+   Components
+   ══════════════════════════════════════════════════════════════ */
 @layer components {
-  .table-cell-mono {
-    @apply font-mono text-sm tabular-nums;
+  .galenic-card {
+    @apply bg-galenic-surface border border-galenic-border rounded-xl shadow-card;
+  }
+
+  .galenic-glass {
+    background: rgb(var(--gc-surface) / 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    @apply border border-galenic-border/60 rounded-2xl;
+    box-shadow: var(--shadow-dark);
+  }
+
+  .galenic-glow {
+    box-shadow: 0 0 0 1px rgb(var(--gc-accent) / 0.25),
+                0 0 16px rgb(var(--gc-accent) / 0.12);
+  }
+
+  /* Zebra striping for data tables */
+  .galenic-table tbody tr:nth-child(even) {
+    @apply bg-galenic-elevated/40;
+  }
+  .galenic-table tbody tr:hover {
+    @apply bg-galenic-accent/5;
   }
 }

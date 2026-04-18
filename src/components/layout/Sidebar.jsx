@@ -1,83 +1,122 @@
-import React from 'react'
+import React, { useRef, useState } from 'react'
+import { Package, FlaskConical, Download, Upload, LogOut, Cloud, Loader } from 'lucide-react'
 import { useApp } from '../../context/AppContext.jsx'
+import { useAuth } from '../../context/AuthContext.jsx'
+import { downloadBackup, parseBackup, mergeBackup } from '../../utils/backupRestore.js'
 
 const NAV_ITEMS = [
   {
     id: 'inventory',
     label: 'Inventario',
     sublabel: 'Materie Prime & Pack',
-    icon: (
-      <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-      </svg>
-    ),
+    icon: <Package size={18} strokeWidth={1.5} />,
   },
   {
     id: 'formulator',
     label: 'Formulatore',
     sublabel: 'Crea & Calcola',
-    icon: (
-      <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1 1 .03 2.798-1.414 2.798H5.612c-1.444 0-2.414-1.798-1.414-2.798L5 14.5" />
-      </svg>
-    ),
-  },
-  {
-    id: 'stability',
-    label: 'Stabilità & Costi',
-    sublabel: 'Analisi & Prezzi',
-    icon: (
-      <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-      </svg>
-    ),
+    icon: <FlaskConical size={18} strokeWidth={1.5} />,
   },
 ]
 
-export default function Sidebar() {
-  const { currentModule, setCurrentModule, formulas } = useApp()
+export default function Sidebar({ isOpen, onClose }) {
+  const { currentModule, setCurrentModule, formulas, rawMaterials, packaging, importBackup, autoSaving } = useApp()
+  const { user, signOut } = useAuth()
+
+  const fileInputRef = useRef(null)
+  const [feedback,   setFeedback]   = useState(null)
+  const [loggingOut, setLoggingOut] = useState(false)
+
+  function navigate(id) {
+    setCurrentModule(id)
+    onClose()
+  }
+
+  function handleDownload() {
+    downloadBackup()
+  }
+
+  function handleFileChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = ev => {
+      const result = parseBackup(ev.target.result)
+      if (!result.ok) {
+        setFeedback({ type: 'err', msg: result.error })
+        setTimeout(() => setFeedback(null), 4000)
+        return
+      }
+      const merged = mergeBackup(result.data, { rawMaterials, packaging, formulas })
+      importBackup(merged)
+      const { added } = merged
+      setFeedback({
+        type: 'ok',
+        msg: `+${added.rawMaterials} mat. +${added.packaging} pack. +${added.formulas} formule`,
+      })
+      setTimeout(() => setFeedback(null), 4000)
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
+
+  async function handleSignOut() {
+    setLoggingOut(true)
+    try { await signOut() } catch { /* ignore */ }
+    setLoggingOut(false)
+  }
+
+  // Avatar letter: first char of email
+  const avatarLetter = user?.email?.[0]?.toUpperCase() ?? '?'
 
   return (
-    <aside className="fixed left-0 top-0 bottom-0 w-56 bg-galenic-surface border-r border-galenic-border flex flex-col z-30">
+    <aside className={[
+      'fixed left-0 top-0 bottom-0 w-56 flex flex-col z-30',
+      'bg-galenic-surface border-r border-galenic-border/60',
+      'transition-transform duration-200 ease-in-out',
+      isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
+    ].join(' ')}>
+
       {/* Logo / Brand */}
-      <div className="px-5 py-5 border-b border-galenic-border">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-galenic-accent flex items-center justify-center">
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} className="text-galenic-base">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3" />
-            </svg>
+      <div className="px-5 py-5 border-b border-galenic-border/60">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-galenic-accent/10 border border-galenic-accent/30 rounded-lg flex items-center justify-center shadow-glow-sm shrink-0">
+            <FlaskConical size={15} className="text-galenic-accent" strokeWidth={2.5} />
           </div>
           <div>
-            <div className="text-sm font-mono font-semibold text-galenic-primary tracking-wide">
+            <div className="text-sm font-semibold text-galenic-primary tracking-wide">
               Galenic-OS
             </div>
-            <div className="text-xs font-mono text-galenic-muted">v0.1.0</div>
+            <div className="text-xs font-mono text-galenic-muted">v0.2.0</div>
+            <div className="text-xs italic text-galenic-muted/50 leading-tight" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>
+              by elia conti
+            </div>
           </div>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {NAV_ITEMS.map(item => {
           const isActive = currentModule === item.id
           return (
             <button
               key={item.id}
-              onClick={() => setCurrentModule(item.id)}
+              onClick={() => navigate(item.id)}
               className={[
-                'w-full flex items-center gap-3 px-3 py-3 text-left transition-all duration-150',
+                'w-full flex items-center gap-3 px-3 py-2.5 text-left rounded-lg transition-all duration-150',
                 isActive
-                  ? 'bg-galenic-accent bg-opacity-10 border-l-2 border-galenic-accent text-galenic-accent'
-                  : 'text-galenic-muted hover:text-galenic-primary hover:bg-galenic-elevated border-l-2 border-transparent',
+                  ? 'bg-galenic-accent/10 border border-galenic-accent/25 text-galenic-accent shadow-glow-sm'
+                  : 'text-galenic-muted hover:text-galenic-primary hover:bg-galenic-elevated/60 border border-transparent',
               ].join(' ')}
             >
               <span className="flex-shrink-0">{item.icon}</span>
               <div className="min-w-0">
-                <div className="text-xs font-mono font-medium truncate">{item.label}</div>
-                <div className="text-xs font-mono text-galenic-muted truncate opacity-70">{item.sublabel}</div>
+                <div className="text-xs font-medium truncate">{item.label}</div>
+                <div className="text-xs text-galenic-muted truncate opacity-60">{item.sublabel}</div>
               </div>
               {item.id === 'formulator' && formulas.length > 0 && (
-                <span className="ml-auto bg-galenic-accent bg-opacity-20 text-galenic-accent text-xs px-1.5 py-0.5 font-mono">
+                <span className="ml-auto bg-galenic-accent/20 text-galenic-accent text-xs px-1.5 py-0.5 font-mono rounded-md">
                   {formulas.length}
                 </span>
               )}
@@ -87,8 +126,87 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="px-5 py-4 border-t border-galenic-border">
-        <div className="text-xs font-mono text-galenic-muted opacity-50">
+      <div className="px-4 py-4 border-t border-galenic-border/60 space-y-2">
+
+        {/* Auto-save indicator */}
+        {autoSaving && (
+          <div className="flex items-center gap-1.5 text-xs font-mono text-galenic-muted/60 px-1">
+            <Loader size={10} className="animate-spin" />
+            Salvataggio cloud…
+          </div>
+        )}
+
+        {/* Feedback message */}
+        {feedback && (
+          <div className={`text-xs font-mono px-2 py-1.5 rounded-md leading-snug ${
+            feedback.type === 'ok'
+              ? 'bg-galenic-ok/10 text-galenic-ok'
+              : 'bg-galenic-danger/10 text-galenic-danger'
+          }`}>
+            {feedback.msg}
+          </div>
+        )}
+
+        {/* Backup / Restore */}
+        <div className="flex gap-2">
+          <button
+            onClick={handleDownload}
+            title="Scarica backup (.json)"
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-mono text-galenic-muted hover:text-galenic-primary hover:bg-galenic-elevated/60 border border-galenic-border/50 transition-all"
+          >
+            <Download size={12} />
+            Backup
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            title="Ripristina da backup"
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-mono text-galenic-muted hover:text-galenic-primary hover:bg-galenic-elevated/60 border border-galenic-border/50 transition-all"
+          >
+            <Upload size={12} />
+            Ripristina
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+        </div>
+
+        {/* User info + logout */}
+        {user && (
+          <div className="flex items-center gap-2 pt-1">
+            {/* Avatar */}
+            <div className="w-7 h-7 rounded-full bg-galenic-accent/20 border border-galenic-accent/30 flex items-center justify-center text-xs font-bold text-galenic-accent shrink-0">
+              {avatarLetter}
+            </div>
+            {/* Email */}
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-mono text-galenic-primary truncate leading-snug">
+                {user.email}
+              </div>
+              <div className="flex items-center gap-1 mt-0.5">
+                <Cloud size={9} className="text-galenic-ok shrink-0" />
+                <span className="text-xs font-mono text-galenic-muted/50">sincronizzato</span>
+              </div>
+            </div>
+            {/* Logout */}
+            <button
+              onClick={handleSignOut}
+              disabled={loggingOut}
+              title="Esci"
+              className="shrink-0 p-1.5 rounded-lg text-galenic-muted hover:text-galenic-danger hover:bg-galenic-danger/10 transition-all disabled:opacity-40"
+            >
+              {loggingOut
+                ? <Loader size={13} className="animate-spin" />
+                : <LogOut size={13} />
+              }
+            </button>
+          </div>
+        )}
+
+        <div className="text-xs text-galenic-muted/30 font-mono">
           Pharmaceutical Formulator
         </div>
       </div>

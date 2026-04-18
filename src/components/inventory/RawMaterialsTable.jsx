@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { Pencil, Trash2, Check, X } from 'lucide-react'
 import Table from '../ui/Table.jsx'
 import Button from '../ui/Button.jsx'
 import Badge from '../ui/Badge.jsx'
@@ -117,21 +118,35 @@ export default function RawMaterialsTable({ rawMaterials, onEdit, onDelete }) {
           {confirmDeleteId === row.id ? (
             <>
               <span className="text-xs text-galenic-danger font-mono">Confermi?</span>
-              <Button size="sm" variant="danger" onClick={() => { onDelete(row.id); setConfirmDeleteId(null) }}>
-                Sì
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteId(null)}>
-                No
-              </Button>
+              <button
+                onClick={() => { onDelete(row.id); setConfirmDeleteId(null) }}
+                className="w-6 h-6 flex items-center justify-center rounded text-galenic-ok hover:bg-galenic-ok/10 transition-all"
+              >
+                <Check size={13} />
+              </button>
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                className="w-6 h-6 flex items-center justify-center rounded text-galenic-muted hover:text-galenic-primary hover:bg-galenic-elevated transition-all"
+              >
+                <X size={13} />
+              </button>
             </>
           ) : (
             <>
-              <Button size="sm" variant="subtle" onClick={() => onEdit(row)}>
-                Modifica
-              </Button>
-              <Button size="sm" variant="danger" onClick={() => setConfirmDeleteId(row.id)}>
-                Elimina
-              </Button>
+              <button
+                onClick={() => onEdit(row)}
+                className="w-7 h-7 flex items-center justify-center rounded-md text-galenic-muted hover:text-galenic-accent hover:bg-galenic-accent/10 transition-all"
+                title="Modifica"
+              >
+                <Pencil size={13} />
+              </button>
+              <button
+                onClick={() => setConfirmDeleteId(row.id)}
+                className="w-7 h-7 flex items-center justify-center rounded-md text-galenic-muted hover:text-galenic-danger hover:bg-galenic-danger/10 transition-all"
+                title="Elimina"
+              >
+                <Trash2 size={13} />
+              </button>
             </>
           )}
         </div>
