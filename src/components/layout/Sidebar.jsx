@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react'
-import { Package, FlaskConical, ShieldCheck, Download, Upload, LogOut, Cloud, Loader } from 'lucide-react'
+import { Package, FlaskConical, Download, Upload, LogOut, Cloud, Loader } from 'lucide-react'
 import { useApp } from '../../context/AppContext.jsx'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { downloadBackup, parseBackup, mergeBackup } from '../../utils/backupRestore.js'
@@ -16,12 +16,6 @@ const NAV_ITEMS = [
     label: 'Formulatore',
     sublabel: 'Crea & Calcola',
     icon: <FlaskConical size={18} strokeWidth={1.5} />,
-  },
-  {
-    id: 'claims',
-    label: 'Claim',
-    sublabel: 'Vitamine · Minerali · Bot.',
-    icon: <ShieldCheck size={18} strokeWidth={1.5} />,
   },
 ]
 

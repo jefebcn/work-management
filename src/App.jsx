@@ -10,7 +10,6 @@ import AuthPage from './components/auth/AuthPage.jsx'
 import RawMaterialsPage from './components/inventory/RawMaterialsPage.jsx'
 import PackagingPage from './components/inventory/PackagingPage.jsx'
 import FormulatorPage from './components/formulator/FormulatorPage.jsx'
-import ClaimsPage from './components/claims/ClaimsPage.jsx'
 import { FlaskConical } from 'lucide-react'
 
 // ── Setup guard ───────────────────────────────────────────────────────────────
@@ -79,7 +78,6 @@ function AppShell() {
             </div>
           )}
           {currentModule === 'formulator' && <FormulatorPage />}
-          {currentModule === 'claims'     && <ClaimsPage />}
         </PageWrapper>
       </div>
     </div>

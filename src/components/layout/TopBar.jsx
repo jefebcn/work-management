@@ -7,7 +7,6 @@ const MODULE_TITLES = {
   inventory:  { title: 'Inventario',    sub: 'Gestione Materie Prime & Packaging' },
   formulator: { title: 'Formulatore',   sub: 'Creazione & Calcolo Formule' },
   stability:  { title: 'Stabilità',     sub: 'Analisi Parametri & Riepilogo Economico' },
-  claims:     { title: 'Claim',         sub: 'Claim Salute Autorizzati — Min. Salute IT / Reg. UE' },
 }
 
 export default function TopBar({ onMenuClick }) {
