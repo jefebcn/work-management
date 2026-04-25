@@ -16,6 +16,7 @@ import QuickActions from './QuickActions.jsx'
 import VersionNoteModal from './VersionNoteModal.jsx'
 import StatusBadge from '../ui/StatusBadge.jsx'
 import BriefingPanel from './BriefingPanel.jsx'
+import LabelPanel from './LabelPanel.jsx'
 import { openLabReportWindow } from '../../utils/pdfReport.js'
 
 const CompositionChart = lazy(() => import('./CompositionChart.jsx'))
@@ -23,7 +24,7 @@ const CompositionChart = lazy(() => import('./CompositionChart.jsx'))
 const TABS = [
   { id: 'balance',   label: 'Bilanciamento', icon: <Scale size={13} /> },
   { id: 'costs',     label: 'Costi',         icon: <Euro size={13} /> },
-  { id: 'nutrients', label: 'Nutrienti',      icon: <Beaker size={13} /> },
+  { id: 'label',     label: 'Label & Claim', icon: <Beaker size={13} /> },
 ]
 
 export default function FormulaBuilder() {
@@ -39,6 +40,7 @@ export default function FormulaBuilder() {
   const [showExport, setShowExport]             = useState(false)
   const [showVersionModal, setShowVersionModal] = useState(false)
   const [activeTab, setActiveTab]               = useState('balance')
+  const [unitMode, setUnitMode]                 = useState('dose') // 'dose' | 'die'
 
   if (!activeFormula) return null
 
@@ -132,15 +134,34 @@ export default function FormulaBuilder() {
 
       {/* ── Tab 1: Bilanciamento ── */}
       {activeTab === 'balance' && (
-        <div className="space-y-4">
+        <div key="balance" className="space-y-4 tab-fade-in">
           {hasWarnings && <WarningBanner warnings={computed.warnings} />}
           <FillVisualization />
 
           <div className="bg-galenic-surface border border-galenic-border rounded-xl overflow-hidden">
-            <div className="px-5 py-3 border-b border-galenic-border bg-galenic-elevated/50 flex items-center justify-between">
-              <h3 className="text-xs font-mono font-semibold text-galenic-primary uppercase tracking-widest">
-                Ingredienti
-              </h3>
+            <div className="px-5 py-3 border-b border-galenic-border bg-galenic-elevated/50 flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-3">
+                <h3 className="text-xs font-mono font-semibold text-galenic-primary uppercase tracking-widest">
+                  Ingredienti
+                </h3>
+                {/* mg/dose ↔ mg/die toggle */}
+                <div className="flex items-center gap-0.5 p-0.5 bg-galenic-elevated rounded-lg border border-galenic-border text-xs font-mono">
+                  {['dose', 'die'].map(m => (
+                    <button
+                      key={m}
+                      onClick={() => setUnitMode(m)}
+                      className={[
+                        'px-2 py-0.5 rounded-md transition-all',
+                        unitMode === m
+                          ? 'bg-galenic-surface text-galenic-accent shadow-sm'
+                          : 'text-galenic-muted hover:text-galenic-primary',
+                      ].join(' ')}
+                    >
+                      /{m}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="flex items-center gap-4 text-xs font-mono">
                 <span className="text-galenic-muted">
                   Totale:{' '}
@@ -158,7 +179,7 @@ export default function FormulaBuilder() {
                   </span>
                 )}
               </div>
-            </div>
+            </div> {/* end header row */}
 
             {activeFormula.ingredients.length > 0 ? (
               <div className="overflow-x-auto overflow-y-auto max-h-[28rem]">
@@ -176,7 +197,7 @@ export default function FormulaBuilder() {
                   </thead>
                   <tbody>
                     {(computed?.rows || []).map((row, index) => (
-                      <IngredientRow key={row.rowId} computedRow={row} rowIndex={index} />
+                      <IngredientRow key={row.rowId} computedRow={row} rowIndex={index} unitMode={unitMode} />
                     ))}
                   </tbody>
                 </table>
@@ -203,7 +224,7 @@ export default function FormulaBuilder() {
 
       {/* ── Tab 2: Costi & Scaling ── */}
       {activeTab === 'costs' && (
-        <div className="space-y-4">
+        <div key="costs" className="space-y-4 tab-fade-in">
           <BriefingPanel />
           <CostSummary />
           <BatchScalingPanel />
@@ -211,10 +232,11 @@ export default function FormulaBuilder() {
         </div>
       )}
 
-      {/* ── Tab 3: Nutrienti & VNR ── */}
-      {activeTab === 'nutrients' && (
-        <div className="space-y-4">
+      {/* ── Tab 3: Label & Claim ── */}
+      {activeTab === 'label' && (
+        <div key="label" className="space-y-4 tab-fade-in">
           <NRVSummaryPanel />
+          <LabelPanel />
         </div>
       )}
 

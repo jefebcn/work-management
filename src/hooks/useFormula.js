@@ -91,6 +91,8 @@ export function useFormula(rawMaterials, packaging, macrothemes = []) {
       packagingRequested: opts.packagingRequested || '',
       briefingNotes:      opts.briefingNotes      || '',
       briefingCode:       opts.briefingCode       || '',
+      // Label claims selezione
+      selectedClaims: [],
       // Back-compat
       version:  1,
       parentId: null,

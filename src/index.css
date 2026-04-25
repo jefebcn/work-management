@@ -105,3 +105,27 @@
     @apply bg-galenic-accent/5;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   Micro-animations
+   ══════════════════════════════════════════════════════════════ */
+@keyframes tabFadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.tab-fade-in {
+  animation: tabFadeIn 0.16s ease-out both;
+}
+
+@keyframes flashGreen {
+  0%   { color: rgb(var(--gc-ok)); }
+  60%  { color: rgb(var(--gc-ok)); }
+  100% { color: inherit; }
+}
+@keyframes flashRed {
+  0%   { color: rgb(var(--gc-danger)); }
+  60%  { color: rgb(var(--gc-danger)); }
+  100% { color: inherit; }
+}
+.cost-flash-down { animation: flashGreen 0.65s ease-out both; }
+.cost-flash-up   { animation: flashRed   0.65s ease-out both; }

@@ -12,7 +12,7 @@ import { fromMg, toMg } from '../../utils/weightConversions.js'
 //  [___] {unit}/dose  [___] mg/dose
 //  [___] {unit}/die   [___] mg/die
 
-export default function IngredientRow({ computedRow, rowIndex = 0 }) {
+export default function IngredientRow({ computedRow, rowIndex = 0, unitMode = 'dose' }) {
   const { rawMaterials, activeFormula, setIngredientAmount, removeIngredient } = useApp()
 
   const rm = rawMaterials.find(r => r.id === computedRow.rawMaterialId)
@@ -131,10 +131,11 @@ export default function IngredientRow({ computedRow, rowIndex = 0 }) {
         </div>
       </td>
 
-      {/* QUANTITÀ — Q/dose always visible; Q/die hidden on mobile */}
+      {/* QUANTITÀ — primary field determined by unitMode; both shown on desktop */}
       <td className="px-3 sm:px-4 py-2">
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-1.5">
+          {/* Q/dose — primary when unitMode==='dose'; on mobile hidden when die mode */}
+          <div className={`flex items-center gap-1.5 ${unitMode === 'die' ? 'hidden sm:flex opacity-50' : ''}`}>
             <input
               type="number" step="any" min="0"
               value={qDoseStr}
@@ -150,7 +151,8 @@ export default function IngredientRow({ computedRow, rowIndex = 0 }) {
             />
             <span className={lbl}>{unit}/dose</span>
           </div>
-          <div className="hidden sm:flex items-center gap-1.5">
+          {/* Q/die — primary when unitMode==='die'; on mobile hidden when dose mode */}
+          <div className={`flex items-center gap-1.5 ${unitMode === 'dose' ? 'hidden sm:flex opacity-50' : ''}`}>
             <input
               type="number" step="any" min="0"
               value={qDieStr}

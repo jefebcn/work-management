@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import { useApp } from '../../context/AppContext.jsx'
 import { fromMg, toMg } from '../../utils/weightConversions.js'
 
@@ -36,6 +36,19 @@ export default function CostSummary() {
 
   const packagingUnitCost = computed.selectedPkg ? computed.selectedPkg.unitCost : 0
   const finalUnitCost = massCostPerUnit + packagingUnitCost
+
+  const prevCostRef = useRef(null)
+  const [flashDir, setFlashDir] = useState(null)
+
+  useEffect(() => {
+    if (prevCostRef.current !== null && finalUnitCost !== prevCostRef.current) {
+      setFlashDir(finalUnitCost > prevCostRef.current ? 'up' : 'down')
+      const t = setTimeout(() => setFlashDir(null), 700)
+      prevCostRef.current = finalUnitCost
+      return () => clearTimeout(t)
+    }
+    prevCostRef.current = finalUnitCost
+  }, [finalUnitCost])
 
   const qtyLabel = qtyPerPackMg > 0
     ? `${qtyPerPackDisplay % 1 === 0 ? qtyPerPackDisplay.toFixed(0) : qtyPerPackDisplay.toFixed(3)} ${qtyPerPackUnit} per unità`
@@ -141,7 +154,7 @@ export default function CostSummary() {
                   Massa ({qtyLabel}) + {computed.selectedPkg ? computed.selectedPkg.description : 'senza packaging'}
                 </div>
               </div>
-              <div className="text-lg font-mono font-bold text-galenic-accent tabular-nums">
+              <div className={`text-lg font-mono font-bold text-galenic-accent tabular-nums ${flashDir === 'down' ? 'cost-flash-down' : flashDir === 'up' ? 'cost-flash-up' : ''}`}>
                 € {finalUnitCost.toFixed(4)}
               </div>
             </div>

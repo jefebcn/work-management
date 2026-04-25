@@ -30,6 +30,7 @@ export function migrateFormula(f, macrothemes) {
   if (out.packagingRequested === undefined) out.packagingRequested = ''
   if (out.format             === undefined) out.format             = ''
   if (out.briefingCode       === undefined) out.briefingCode       = ''
+  if (!Array.isArray(out.selectedClaims))  out.selectedClaims     = []
 
   // Migra status da binario {draft|finalized} al lifecycle a 4 stati
   out.status = migrateStatus(out.status)
