@@ -60,7 +60,7 @@ export default function FormulaBuilder() {
   return (
     <div className="space-y-4">
       {/* Top action bar */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
+      <div className="flex items-start sm:items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3 min-w-0">
           <Button variant="ghost" size="sm" onClick={resetActiveFormula}>
             ← Torna alla Lista
@@ -112,7 +112,7 @@ export default function FormulaBuilder() {
       <FormulaHeader />
 
       {/* ── Tab bar ── */}
-      <div className="flex gap-1 p-1 bg-galenic-elevated/40 rounded-xl border border-galenic-border w-fit">
+      <div className="flex gap-1 p-1 bg-galenic-elevated/40 rounded-xl border border-galenic-border w-fit max-w-full overflow-x-auto">
         {TABS.map(tab => (
           <button
             key={tab.id}
@@ -165,13 +165,13 @@ export default function FormulaBuilder() {
                 <table className="w-full text-sm font-mono galenic-table">
                   <thead className="sticky top-0 z-10">
                     <tr className="bg-galenic-elevated border-b border-galenic-border">
-                      <th className="px-4 py-3 text-left text-xs text-galenic-muted uppercase tracking-wider font-medium whitespace-nowrap">Materia Prima</th>
-                      <th className="px-4 py-3 text-left text-xs text-galenic-muted uppercase tracking-wider font-medium whitespace-nowrap">Quantità</th>
-                      <th className="px-4 py-3 text-center text-xs text-galenic-muted uppercase tracking-wider font-medium whitespace-nowrap">% Peso</th>
-                      <th className="px-4 py-3 text-left text-xs text-galenic-muted uppercase tracking-wider font-medium whitespace-nowrap">Apporto Reale</th>
-                      <th className="px-4 py-3 text-center text-xs text-galenic-muted uppercase tracking-wider font-medium whitespace-nowrap">VNR %</th>
-                      <th className="px-4 py-3 text-center text-xs text-galenic-muted uppercase tracking-wider font-medium whitespace-nowrap">Fill</th>
-                      <th className="px-4 py-3" />
+                      <th className="px-3 sm:px-4 py-3 text-left text-xs text-galenic-muted uppercase tracking-wider font-medium whitespace-nowrap">Materia Prima</th>
+                      <th className="px-3 sm:px-4 py-3 text-left text-xs text-galenic-muted uppercase tracking-wider font-medium whitespace-nowrap">Quantità</th>
+                      <th className="hidden sm:table-cell px-4 py-3 text-center text-xs text-galenic-muted uppercase tracking-wider font-medium whitespace-nowrap">% Peso</th>
+                      <th className="hidden sm:table-cell px-4 py-3 text-left text-xs text-galenic-muted uppercase tracking-wider font-medium whitespace-nowrap">Apporto Reale</th>
+                      <th className="hidden sm:table-cell px-4 py-3 text-center text-xs text-galenic-muted uppercase tracking-wider font-medium whitespace-nowrap">VNR %</th>
+                      <th className="hidden sm:table-cell px-4 py-3 text-center text-xs text-galenic-muted uppercase tracking-wider font-medium whitespace-nowrap">Fill</th>
+                      <th className="px-2 py-3" />
                     </tr>
                   </thead>
                   <tbody>

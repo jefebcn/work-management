@@ -57,8 +57,8 @@ export default function IngredientSelector() {
         )}
       </div>
 
-      {/* Select + Add button */}
-      <div className="flex items-center gap-3">
+      {/* Select + Add button — stacks on mobile */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
         <select
           value={selectedId}
           onChange={e => setSelectedId(e.target.value)}
@@ -67,7 +67,7 @@ export default function IngredientSelector() {
           <option value="">
             {filtered.length === 0 && q
               ? '— Nessun risultato —'
-              : '— Seleziona materia prima da aggiungere —'}
+              : '— Seleziona materia prima —'}
           </option>
           {filtered.map(rm => (
             <option key={rm.id} value={rm.id}>
@@ -80,6 +80,7 @@ export default function IngredientSelector() {
           size="sm"
           onClick={handleAdd}
           disabled={!selectedId}
+          className="sm:shrink-0"
         >
           + Aggiungi
         </Button>

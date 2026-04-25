@@ -61,9 +61,9 @@ export default function QuickActions() {
               <select
                 value={fillId}
                 onChange={e => setFillId(e.target.value)}
-                className="flex-1 min-w-[180px] bg-galenic-surface border border-galenic-border text-galenic-primary font-mono text-xs px-3 py-1.5 outline-none focus:border-galenic-accent transition-colors rounded-lg"
+                className="flex-1 min-w-[120px] bg-galenic-surface border border-galenic-border text-galenic-primary font-mono text-xs px-3 py-1.5 outline-none focus:border-galenic-accent transition-colors rounded-lg"
               >
-                <option value="">— Scegli eccipiente riempitivo —</option>
+                <option value="">— Scegli riempitivo —</option>
                 {excipients.map(rm => (
                   <option key={rm.id} value={rm.id}>{rm.name}</option>
                 ))}
@@ -98,7 +98,7 @@ export default function QuickActions() {
               <select
                 value={acId}
                 onChange={e => setAcId(e.target.value)}
-                className="flex-1 min-w-[180px] bg-galenic-surface border border-galenic-border text-galenic-primary font-mono text-xs px-3 py-1.5 outline-none focus:border-galenic-accent transition-colors rounded-lg"
+                className="flex-1 min-w-[120px] bg-galenic-surface border border-galenic-border text-galenic-primary font-mono text-xs px-3 py-1.5 outline-none focus:border-galenic-accent transition-colors rounded-lg"
               >
                 <option value="">— Scegli antiagglomerante —</option>
                 {excipients.map(rm => (

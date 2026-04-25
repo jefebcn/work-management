@@ -112,7 +112,7 @@ export default function IngredientRow({ computedRow, rowIndex = 0 }) {
     <tr className={`border-b border-galenic-border hover:bg-galenic-accent/5 transition-colors ${rowBg}`}>
 
       {/* Material name */}
-      <td className="px-4 py-3">
+      <td className="px-3 sm:px-4 py-3">
         <div className="font-medium text-sm text-galenic-primary">{rm.name}</div>
         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
           {rm.activeNutrient && (
@@ -131,8 +131,8 @@ export default function IngredientRow({ computedRow, rowIndex = 0 }) {
         </div>
       </td>
 
-      {/* QUANTITÀ — Q/dose on top, Q/die below */}
-      <td className="px-4 py-2">
+      {/* QUANTITÀ — Q/dose always visible; Q/die hidden on mobile */}
+      <td className="px-3 sm:px-4 py-2">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-1.5">
             <input
@@ -150,7 +150,7 @@ export default function IngredientRow({ computedRow, rowIndex = 0 }) {
             />
             <span className={lbl}>{unit}/dose</span>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="hidden sm:flex items-center gap-1.5">
             <input
               type="number" step="any" min="0"
               value={qDieStr}
@@ -193,15 +193,15 @@ export default function IngredientRow({ computedRow, rowIndex = 0 }) {
         </div>
       </td>
 
-      {/* % of total */}
-      <td className="px-4 py-3 tabular-nums text-center align-middle">
+      {/* % of total — hidden on mobile */}
+      <td className="hidden sm:table-cell px-4 py-3 tabular-nums text-center align-middle">
         <span className={`font-mono text-sm ${computedRow.percentOfTotal > 100 ? 'text-galenic-danger' : 'text-galenic-primary'}`}>
           {computedRow.percentOfTotal.toFixed(2)}%
         </span>
       </td>
 
-      {/* TARGET ATTIVO — reverse-calc from active nutrient content */}
-      <td className="px-4 py-2">
+      {/* TARGET ATTIVO — reverse-calc, hidden on mobile */}
+      <td className="hidden sm:table-cell px-4 py-2">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-1.5">
             <input
@@ -247,8 +247,8 @@ export default function IngredientRow({ computedRow, rowIndex = 0 }) {
         </div>
       </td>
 
-      {/* NRV % */}
-      <td className="px-4 py-3 text-center align-middle">
+      {/* NRV % — hidden on mobile */}
+      <td className="hidden sm:table-cell px-4 py-3 text-center align-middle">
         {computedRow.nrvPercent !== null ? (
           <Badge variant={nrvVariant(computedRow.nrvPercent)}>
             {computedRow.nrvPercent.toFixed(1)}% VNR
@@ -258,13 +258,13 @@ export default function IngredientRow({ computedRow, rowIndex = 0 }) {
         )}
       </td>
 
-      {/* Filler toggle */}
-      <td className="px-4 py-3 text-center align-middle">
+      {/* Filler toggle — hidden on mobile */}
+      <td className="hidden sm:table-cell px-4 py-3 text-center align-middle">
         <FillerToggle rowId={computedRow.rowId} isFiller={computedRow.isFiller} />
       </td>
 
       {/* Delete */}
-      <td className="px-3 py-3 text-right align-middle">
+      <td className="px-2 py-3 text-right align-middle">
         <button
           onClick={() => removeIngredient(computedRow.rowId)}
           className="w-7 h-7 flex items-center justify-center rounded-md text-galenic-muted hover:text-galenic-danger hover:bg-galenic-danger/10 transition-all"

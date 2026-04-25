@@ -87,7 +87,7 @@ export default function CommandBar({ open, onClose }) {
       />
 
       {/* Panel */}
-      <div className="fixed top-[15%] left-1/2 -translate-x-1/2 z-50 w-full max-w-lg px-4">
+      <div className="fixed top-[10%] sm:top-[15%] left-1/2 -translate-x-1/2 z-50 w-full max-w-sm sm:max-w-lg px-3 sm:px-4">
         <div className="bg-galenic-surface border border-galenic-border rounded-2xl shadow-2xl overflow-hidden">
 
           {/* Search input */}
@@ -108,7 +108,7 @@ export default function CommandBar({ open, onClose }) {
           </div>
 
           {/* Results */}
-          <div className="max-h-80 overflow-y-auto py-2">
+          <div className="max-h-[55vh] sm:max-h-80 overflow-y-auto py-2">
             {results.length === 0 ? (
               <div className="px-4 py-8 text-center text-xs font-mono text-galenic-muted/50">
                 Nessun risultato per "{query}"

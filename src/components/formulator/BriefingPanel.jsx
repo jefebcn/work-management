@@ -84,9 +84,9 @@ export default function BriefingPanel() {
           </div>
         )}
 
-        {/* Quick meta row */}
+        {/* Quick meta row — wraps on mobile */}
         {(format || packagingRequested) && (
-          <div className="flex items-center gap-4 text-xs font-mono text-galenic-muted">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs font-mono text-galenic-muted">
             {format && (
               <span className="flex items-center gap-1">
                 <Tag size={10} />

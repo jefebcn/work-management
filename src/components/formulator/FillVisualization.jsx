@@ -68,9 +68,9 @@ function CapsuleSection({ tv }) {
   const cautionWarnings = (warnings || []).filter(w => w.severity !== 'danger')
 
   return (
-    <div className="flex items-start gap-6 flex-wrap">
-      {/* All 6 capsule bars */}
-      <div className="flex items-end gap-3 pb-1">
+    <div className="flex items-start gap-4 sm:gap-6 flex-wrap">
+      {/* All 6 capsule bars — wrap on narrow screens */}
+      <div className="flex items-end flex-wrap gap-2 sm:gap-3 pb-1">
         {CAPSULE_SIZES.map(cs => (
           <CapsuleBar
             key={cs.size}

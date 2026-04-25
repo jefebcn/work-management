@@ -21,8 +21,8 @@ export default function CompareView({ formulaA, formulaB, onClose }) {
   if (!formulaA || !formulaB) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="w-full max-w-5xl max-h-[90vh] flex flex-col bg-galenic-surface border border-galenic-border rounded-2xl shadow-xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/70 backdrop-blur-sm">
+      <div className="w-full sm:max-w-5xl max-h-[92vh] sm:max-h-[90vh] flex flex-col bg-galenic-surface border border-galenic-border sm:rounded-2xl rounded-t-2xl shadow-xl overflow-hidden">
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-galenic-border shrink-0">
@@ -49,14 +49,14 @@ export default function CompareView({ formulaA, formulaB, onClose }) {
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-galenic-border shrink-0">
+        {/* Tabs — horizontally scrollable on mobile */}
+        <div className="flex border-b border-galenic-border shrink-0 overflow-x-auto">
           {TABS.map(t => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
               className={[
-                'px-4 py-2.5 text-xs font-mono transition-all',
+                'px-4 sm:px-5 py-2.5 text-xs font-mono transition-all whitespace-nowrap shrink-0',
                 tab === t.key
                   ? 'text-galenic-accent border-b-2 border-galenic-accent bg-galenic-accent/5'
                   : 'text-galenic-muted hover:text-galenic-primary hover:bg-galenic-elevated/30',
