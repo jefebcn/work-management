@@ -2,15 +2,21 @@ import React, { createContext, useContext, useState } from 'react'
 import { useInventory } from '../hooks/useInventory.js'
 import { usePackaging } from '../hooks/usePackaging.js'
 import { useFormula } from '../hooks/useFormula.js'
+import { useMacrothemes } from '../hooks/useMacrothemes.js'
 
 const AppContext = createContext(null)
 
 export function AppProvider({ children }) {
   const [currentModule, setCurrentModule] = useState('inventory')
 
-  const inventory      = useInventory()
-  const packagingStore = usePackaging()
-  const formulaStore   = useFormula(inventory.rawMaterials, packagingStore.packaging)
+  const inventory       = useInventory()
+  const packagingStore  = usePackaging()
+  const macrothemeStore = useMacrothemes()
+  const formulaStore    = useFormula(
+    inventory.rawMaterials,
+    packagingStore.packaging,
+    macrothemeStore.macrothemes,
+  )
 
   function importBackup({ rawMaterials, packaging, formulas }) {
     inventory.replaceRawMaterials(rawMaterials)
@@ -57,6 +63,13 @@ export function AppProvider({ children }) {
     setIngredientFiller:     formulaStore.setIngredientFiller,
     setPackagingId:          formulaStore.setPackagingId,
     createSnapshot:          formulaStore.createSnapshot,
+    setMacrothemeForFormula: formulaStore.setMacrothemeForFormula,
+
+    // Macrothemes
+    macrothemes:        macrothemeStore.macrothemes,
+    addMacrotheme:      macrothemeStore.addMacrotheme,
+    updateMacrotheme:   macrothemeStore.updateMacrotheme,
+    deleteMacrotheme:   macrothemeStore.deleteMacrotheme,
 
     // Backup / restore
     importBackup,

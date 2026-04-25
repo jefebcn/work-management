@@ -1,5 +1,5 @@
 import React, { useState, Suspense, lazy } from 'react'
-import { AlertTriangle, Download, Save, CheckCircle, Printer, Copy } from 'lucide-react'
+import { AlertTriangle, Download, Save, CheckCircle, Printer, GitBranch } from 'lucide-react'
 import { useApp } from '../../context/AppContext.jsx'
 import FormulaHeader from './FormulaHeader.jsx'
 import IngredientRow from './IngredientRow.jsx'
@@ -13,6 +13,7 @@ import ExportModal from './ExportModal.jsx'
 import FillVisualization from './FillVisualization.jsx'
 import BatchScalingPanel from './BatchScalingPanel.jsx'
 import QuickActions from './QuickActions.jsx'
+import VersionNoteModal from './VersionNoteModal.jsx'
 import { openLabReportWindow } from '../../utils/pdfReport.js'
 
 // Lazy-load the chart so recharts doesn't bloat the initial bundle
@@ -28,12 +29,18 @@ export default function FormulaBuilder() {
     setFormulaField,
     createSnapshot,
   } = useApp()
-  const [showExport, setShowExport] = useState(false)
+  const [showExport, setShowExport]           = useState(false)
+  const [showVersionModal, setShowVersionModal] = useState(false)
 
   if (!activeFormula) return null
 
   function handleSave(status = activeFormula.status) {
     saveFormula({ ...activeFormula, status })
+  }
+
+  function handleSnapshotConfirm(note) {
+    createSnapshot(note)
+    setShowVersionModal(false)
   }
 
   const hasWarnings   = computed?.warnings?.length > 0
@@ -45,11 +52,25 @@ export default function FormulaBuilder() {
   return (
     <div className="space-y-4">
       {/* Top action bar */}
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={resetActiveFormula}>
-          ← Torna alla Lista
-        </Button>
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-3 min-w-0">
+          <Button variant="ghost" size="sm" onClick={resetActiveFormula}>
+            ← Torna alla Lista
+          </Button>
+          {/* Version label + nota */}
+          <div className="flex items-center gap-1.5 text-xs font-mono px-2 py-1 rounded-lg bg-galenic-elevated/50 border border-galenic-border min-w-0">
+            <GitBranch size={11} className="text-galenic-accent shrink-0" />
+            <span className="text-galenic-accent font-semibold shrink-0">
+              {activeFormula.versionLabel || `v${activeFormula.version || 1}.0`}
+            </span>
+            {activeFormula.versionNote && (
+              <span className="text-galenic-muted/70 italic truncate hidden sm:inline">
+                · "{activeFormula.versionNote}"
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Finalized toggle */}
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -88,12 +109,12 @@ export default function FormulaBuilder() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={createSnapshot}
-            title="Crea nuova versione (snapshot)"
+            onClick={() => setShowVersionModal(true)}
+            title="Crea nuova versione con nota"
           >
-            <Copy size={14} className="mr-1.5" />
+            <GitBranch size={14} className="mr-1.5" />
             <span className="hidden sm:inline">
-              v{activeFormula.version || 1} → v{(activeFormula.version || 1) + 1}
+              Nuova versione
             </span>
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setShowExport(true)}>
@@ -205,6 +226,14 @@ export default function FormulaBuilder() {
 
       {/* Export modal */}
       <ExportModal isOpen={showExport} onClose={() => setShowExport(false)} />
+
+      {/* Version snapshot modal */}
+      <VersionNoteModal
+        open={showVersionModal}
+        currentLabel={activeFormula.versionLabel || `v${activeFormula.version || 1}.0`}
+        onCancel={() => setShowVersionModal(false)}
+        onConfirm={handleSnapshotConfirm}
+      />
     </div>
   )
 }

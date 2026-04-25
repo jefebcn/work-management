@@ -1,16 +1,26 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { loadFromStorage, saveToStorage } from '../utils/localStorage.js'
 import { STORAGE_KEYS } from '../utils/storageKeys.js'
 import { generateId } from '../utils/idGenerator.js'
 import { computeFormulaResults } from '../utils/formulaCalculations.js'
 import { toMg } from '../utils/weightConversions.js'
+import { migrateAllFormulas, nextVersionLabel } from '../utils/formulaMigration.js'
+import { suggestMacrothemeId } from '../utils/macrothemeAutoSuggest.js'
 
-export function useFormula(rawMaterials, packaging) {
+export function useFormula(rawMaterials, packaging, macrothemes = []) {
   const [formulas, setFormulas] = useState(() =>
     loadFromStorage(STORAGE_KEYS.FORMULAS, []),
   )
   const [activeFormula, setActiveFormula] = useState(null)
   const [lastSaved,     setLastSaved]     = useState(null)
+  const migratedRef = useRef(false)
+
+  // One-shot migrazione al primo render quando macrothemes sono caricati
+  useEffect(() => {
+    if (migratedRef.current || !macrothemes.length) return
+    setFormulas(prev => migrateAllFormulas(prev, macrothemes))
+    migratedRef.current = true
+  }, [macrothemes])
 
   // Persist to localStorage and track last-saved timestamp
   useEffect(() => {
@@ -48,12 +58,14 @@ export function useFormula(rawMaterials, packaging) {
 
   // ── Active formula session ─────────────────────────────────────────────────
 
-  function newFormula() {
+  function newFormula(opts = {}) {
     const now = new Date().toISOString()
+    const id = generateId('frm')
+    const initialType = opts.type || 'Compresse'
     setActiveFormula({
-      id: generateId('frm'),
-      name: 'Nuova Formula',
-      type: 'Compresse',
+      id,
+      name: opts.name || 'Nuova Formula',
+      type: initialType,
       targetWeightMg: 500,
       targetWeightUnit: 'mg',
       ingredients: [],
@@ -66,11 +78,33 @@ export function useFormula(rawMaterials, packaging) {
       status: 'draft',
       batchSize: 1000,
       markupPercent: 0,
-      version: 1,
+      // Sistema versioni esteso
+      productGroupId: id,
+      versionLabel:   'v1.0',
+      versionNote:    '',
+      // Auto-categorizzazione macrotheme
+      macrothemeId:   opts.macrothemeId || suggestMacrothemeId(initialType, macrothemes),
+      // Back-compat
+      version:  1,
       parentId: null,
       createdAt: now,
       updatedAt: now,
     })
+  }
+
+  /** Cambia il macrotheme di una formula salvata */
+  function setMacrothemeForFormula(formulaId, macrothemeId) {
+    setFormulas(prev =>
+      prev.map(f =>
+        f.id === formulaId
+          ? { ...f, macrothemeId, updatedAt: new Date().toISOString() }
+          : f,
+      ),
+    )
+    // Aggiorna anche la sessione attiva se è la formula corrente
+    setActiveFormula(prev =>
+      prev?.id === formulaId ? { ...prev, macrothemeId } : prev,
+    )
   }
 
   function openFormula(formula) {
@@ -170,27 +204,53 @@ export function useFormula(rawMaterials, packaging) {
     })
   }
 
-  function createSnapshot() {
-    if (!activeFormula) return
+  /**
+   * Crea uno snapshot (nuova versione) della formula attiva.
+   * @param {string} note - Nota descrittiva opzionale (es. "+10% Caffeina")
+   */
+  function createSnapshot(note = '') {
+    if (!activeFormula) return null
     saveFormula(activeFormula)
 
-    const familyId    = activeFormula.parentId || activeFormula.id
+    // Family-id: gruppo prodotto unifica tutte le versioni
+    const familyId = activeFormula.productGroupId
+                  || activeFormula.parentId
+                  || activeFormula.id
+
+    // Trova la versione più alta nella famiglia per generare la prossima label
     const allVersions = [...formulas, activeFormula]
-      .filter(f => f.id === familyId || f.parentId === familyId)
-    const maxVer      = Math.max(1, ...allVersions.map(f => f.version || 1))
+      .filter(f =>
+        f.id === familyId ||
+        f.parentId === familyId ||
+        f.productGroupId === familyId,
+      )
+
+    // Determina la prossima version label (es. v1.2 → v1.3)
+    const maxLabel = allVersions
+      .map(f => f.versionLabel)
+      .filter(Boolean)
+      .sort()
+      .pop() || activeFormula.versionLabel || 'v1.0'
+
+    const newLabel = nextVersionLabel(maxLabel)
+    const maxVer   = Math.max(1, ...allVersions.map(f => f.version || 1))
 
     const now      = new Date().toISOString()
     const snapshot = {
       ...activeFormula,
-      id:        generateId('frm'),
-      version:   maxVer + 1,
-      parentId:  familyId,
-      status:    'draft',
-      createdAt: now,
-      updatedAt: now,
+      id:             generateId('frm'),
+      version:        maxVer + 1,
+      parentId:       familyId,
+      productGroupId: familyId,
+      versionLabel:   newLabel,
+      versionNote:    (note || '').trim(),
+      status:         'draft',
+      createdAt:      now,
+      updatedAt:      now,
     }
     setFormulas(prev => [...prev, snapshot])
     setActiveFormula(snapshot)
+    return snapshot
   }
 
   function removeIngredient(rowId) {
@@ -254,5 +314,6 @@ export function useFormula(rawMaterials, packaging) {
     setIngredientFiller,
     setPackagingId,
     createSnapshot,
+    setMacrothemeForFormula,
   }
 }
