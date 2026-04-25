@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react'
 import {
   LayoutDashboard, Package, FlaskConical,
-  Download, Upload, HardDrive,
+  Download, Upload, HardDrive, ClipboardList,
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext.jsx'
 import { downloadBackup, parseBackup, mergeBackup } from '../../utils/backupRestore.js'
@@ -24,6 +24,12 @@ const NAV_ITEMS = [
     label:    'Inventario',
     sublabel: 'Materie Prime & Pack',
     icon:     <Package size={17} strokeWidth={1.7} />,
+  },
+  {
+    id:       'briefing',
+    label:    'Briefing',
+    sublabel: 'Richieste Commerciali',
+    icon:     <ClipboardList size={17} strokeWidth={1.7} />,
   },
 ]
 

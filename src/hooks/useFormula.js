@@ -84,12 +84,68 @@ export function useFormula(rawMaterials, packaging, macrothemes = []) {
       versionNote:    '',
       // Auto-categorizzazione macrotheme
       macrothemeId:   opts.macrothemeId || suggestMacrothemeId(initialType, macrothemes),
+      // Briefing commerciale (opzionali)
+      clientName:         opts.clientName         || '',
+      targetPrice:        opts.targetPrice         ?? null,
+      format:             opts.format             || '',
+      packagingRequested: opts.packagingRequested || '',
+      briefingNotes:      opts.briefingNotes      || '',
+      briefingCode:       opts.briefingCode       || '',
       // Back-compat
       version:  1,
       parentId: null,
       createdAt: now,
       updatedAt: now,
     })
+  }
+
+  /**
+   * Crea una nuova formula dai dati decodificati di un briefing commerciale,
+   * la salva nell'archivio e la apre nel builder.
+   * @param {object} decoded - payload da decodeBriefing()
+   * @param {string} rawCode - codice sorgente originale (per tracciabilità)
+   */
+  function importBriefing(decoded, rawCode = '') {
+    const now = new Date().toISOString()
+    const id  = generateId('frm')
+    const initialType   = decoded.t || 'Compresse'
+    const macrothemeId  = decoded.m || suggestMacrothemeId(initialType, macrothemes)
+    const formula = {
+      id,
+      name:            decoded.n || 'Progetto da Briefing',
+      type:            initialType,
+      targetWeightMg:  500,
+      targetWeightUnit: 'mg',
+      ingredients:     [],
+      packagingId:     null,
+      qtyPerPackMg:    0,
+      qtyPerPackUnit:  'g',
+      dosiAlGiorno:    1,
+      pH:              null,
+      brix:            null,
+      status:          'draft',
+      batchSize:       1000,
+      markupPercent:   0,
+      productGroupId:  id,
+      versionLabel:    'v1.0',
+      versionNote:     '',
+      macrothemeId,
+      // Briefing data
+      clientName:         decoded.c  || '',
+      targetPrice:        decoded.tp ?? null,
+      format:             decoded.f  || '',
+      packagingRequested: decoded.p  || '',
+      briefingNotes:      decoded.b  || '',
+      briefingCode:       rawCode,
+      // Back-compat
+      version:  1,
+      parentId: null,
+      createdAt: now,
+      updatedAt: now,
+    }
+    setFormulas(prev => [...prev, formula])
+    setActiveFormula(formula)
+    return formula
   }
 
   /** Cambia il macrotheme di una formula salvata */
@@ -315,5 +371,6 @@ export function useFormula(rawMaterials, packaging, macrothemes = []) {
     setPackagingId,
     createSnapshot,
     setMacrothemeForFormula,
+    importBriefing,
   }
 }

@@ -23,6 +23,14 @@ export function migrateFormula(f, macrothemes) {
     out.versionNote = ''
   }
 
+  // Briefing fields (back-compat defaults)
+  if (out.targetPrice        === undefined) out.targetPrice        = null
+  if (out.clientName         === undefined) out.clientName         = ''
+  if (out.briefingNotes      === undefined) out.briefingNotes      = ''
+  if (out.packagingRequested === undefined) out.packagingRequested = ''
+  if (out.format             === undefined) out.format             = ''
+  if (out.briefingCode       === undefined) out.briefingCode       = ''
+
   // Migra status da binario {draft|finalized} al lifecycle a 4 stati
   out.status = migrateStatus(out.status)
 

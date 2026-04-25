@@ -1,14 +1,39 @@
-import React, { useMemo } from 'react'
-import { Layers, Beaker, Euro, Clock, ArrowRight, Folder } from 'lucide-react'
+import React, { useMemo, useState } from 'react'
+import { Layers, Beaker, Euro, Clock, ArrowRight, Folder, ClipboardList, X, AlertTriangle, CheckCircle } from 'lucide-react'
 import { useApp } from '../../context/AppContext.jsx'
 import { computeDashboardKPIs, recentActivity } from '../../utils/dashboardStats.js'
+import { decodeBriefing } from '../../utils/briefingCodec.js'
 import StatusBadge from '../ui/StatusBadge.jsx'
+import Button from '../ui/Button.jsx'
 
 export default function DashboardPage() {
-  const { formulas, rawMaterials, packaging, macrothemes, openFormula, setCurrentModule } = useApp()
+  const { formulas, rawMaterials, packaging, macrothemes, openFormula, setCurrentModule, importBriefing } = useApp()
 
   const kpis   = useMemo(() => computeDashboardKPIs(formulas, rawMaterials, packaging), [formulas, rawMaterials, packaging])
   const recent = useMemo(() => recentActivity(formulas, 5), [formulas])
+
+  const [showImport, setShowImport]   = useState(false)
+  const [importCode, setImportCode]   = useState('')
+  const [importError, setImportError] = useState('')
+  const [importSuccess, setImportSuccess] = useState('')
+
+  function handleImport() {
+    setImportError('')
+    const decoded = decodeBriefing(importCode.trim())
+    if (!decoded || !decoded.n) {
+      setImportError('Codice non valido o corrotto. Verifica di aver incollato il testo completo.')
+      return
+    }
+    const macro = macrothemes.find(m => m.id === decoded.m)
+    importBriefing(decoded, importCode.trim())
+    setImportSuccess(`Progetto "${decoded.n}" creato nel macrotema "${macro?.name || '—'}"`)
+    setTimeout(() => {
+      setShowImport(false)
+      setImportCode('')
+      setImportSuccess('')
+      setCurrentModule('formulator')
+    }, 2000)
+  }
 
   const macroById = Object.fromEntries(macrothemes.map(m => [m.id, m]))
 
@@ -55,6 +80,62 @@ export default function DashboardPage() {
         />
       </div>
 
+      {/* Briefing import modal */}
+      {showImport && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-galenic-surface rounded-xl border border-galenic-border shadow-2xl w-full max-w-md space-y-4 p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ClipboardList size={15} className="text-galenic-accent" />
+                <h3 className="text-sm font-semibold text-galenic-primary">Importa da Briefing</h3>
+              </div>
+              <button
+                onClick={() => { setShowImport(false); setImportCode(''); setImportError(''); setImportSuccess('') }}
+                className="p-1.5 rounded-lg text-galenic-muted hover:text-galenic-primary hover:bg-galenic-elevated transition-all"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            {importSuccess ? (
+              <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-galenic-ok/10 border border-galenic-ok/30 text-galenic-ok text-xs font-mono">
+                <CheckCircle size={13} />
+                {importSuccess}
+              </div>
+            ) : (
+              <>
+                <div className="space-y-1">
+                  <label className="text-xs font-mono text-galenic-muted">Codice Briefing</label>
+                  <textarea
+                    value={importCode}
+                    onChange={e => { setImportCode(e.target.value); setImportError('') }}
+                    rows={4}
+                    placeholder="Incolla qui il codice ricevuto dal commerciale..."
+                    className="w-full bg-galenic-elevated border border-galenic-border rounded-lg px-3 py-2 text-xs font-mono text-galenic-primary placeholder-galenic-muted/50 focus:outline-none focus:border-galenic-accent transition-colors resize-none"
+                  />
+                </div>
+
+                {importError && (
+                  <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-galenic-danger/10 border border-galenic-danger/30 text-galenic-danger text-xs font-mono">
+                    <AlertTriangle size={12} className="mt-0.5 shrink-0" />
+                    {importError}
+                  </div>
+                )}
+
+                <div className="flex gap-2 justify-end">
+                  <Button variant="ghost" size="sm" onClick={() => { setShowImport(false); setImportCode(''); setImportError('') }}>
+                    Annulla
+                  </Button>
+                  <Button variant="primary" size="sm" onClick={handleImport} disabled={!importCode.trim()}>
+                    Importa Progetto
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Recent activity */}
       <div className="bg-galenic-surface border border-galenic-border rounded-xl shadow-sm">
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-galenic-border">
@@ -64,13 +145,22 @@ export default function DashboardPage() {
               Ultime 5 modifiche ai progetti
             </p>
           </div>
-          <button
-            onClick={() => setCurrentModule('formulator')}
-            className="flex items-center gap-1 text-xs font-mono text-galenic-accent hover:opacity-80 transition-opacity"
-          >
-            Vedi tutto
-            <ArrowRight size={11} />
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowImport(true)}
+              className="flex items-center gap-1 text-xs font-mono text-galenic-muted hover:text-galenic-primary transition-colors border border-galenic-border/60 px-2.5 py-1 rounded-md hover:bg-galenic-elevated/60"
+            >
+              <ClipboardList size={11} />
+              Importa Briefing
+            </button>
+            <button
+              onClick={() => setCurrentModule('formulator')}
+              className="flex items-center gap-1 text-xs font-mono text-galenic-accent hover:opacity-80 transition-opacity"
+            >
+              Vedi tutto
+              <ArrowRight size={11} />
+            </button>
+          </div>
         </div>
 
         {recent.length === 0 ? (

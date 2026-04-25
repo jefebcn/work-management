@@ -15,6 +15,7 @@ import BatchScalingPanel from './BatchScalingPanel.jsx'
 import QuickActions from './QuickActions.jsx'
 import VersionNoteModal from './VersionNoteModal.jsx'
 import StatusBadge from '../ui/StatusBadge.jsx'
+import BriefingPanel from './BriefingPanel.jsx'
 import { openLabReportWindow } from '../../utils/pdfReport.js'
 
 // Lazy-load the chart so recharts doesn't bloat the initial bundle
@@ -205,6 +206,9 @@ export default function FormulaBuilder() {
 
       {/* Cost summary */}
       <CostSummary />
+
+      {/* Briefing panel — visible when formula was created from a briefing */}
+      <BriefingPanel />
 
       {/* Export modal */}
       <ExportModal isOpen={showExport} onClose={() => setShowExport(false)} />

@@ -8,6 +8,7 @@ import DashboardPage from './components/dashboard/DashboardPage.jsx'
 import RawMaterialsPage from './components/inventory/RawMaterialsPage.jsx'
 import PackagingPage from './components/inventory/PackagingPage.jsx'
 import FormulatorPage from './components/formulator/FormulatorPage.jsx'
+import BriefingPage from './components/briefing/BriefingPage.jsx'
 
 function AppShell() {
   const { currentModule } = useApp()
@@ -36,6 +37,7 @@ function AppShell() {
             </div>
           )}
           {currentModule === 'formulator' && <FormulatorPage />}
+          {currentModule === 'briefing'   && <BriefingPage />}
         </PageWrapper>
       </div>
     </div>

@@ -64,6 +64,7 @@ export function AppProvider({ children }) {
     setPackagingId:          formulaStore.setPackagingId,
     createSnapshot:          formulaStore.createSnapshot,
     setMacrothemeForFormula: formulaStore.setMacrothemeForFormula,
+    importBriefing:          formulaStore.importBriefing,
 
     // Macrothemes
     macrothemes:        macrothemeStore.macrothemes,
