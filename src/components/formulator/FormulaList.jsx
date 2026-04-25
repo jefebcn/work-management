@@ -1,40 +1,39 @@
 import React, { useState, useMemo } from 'react'
 import {
-  Plus, Folder, FolderPlus, ChevronRight, ChevronDown, GitCompare,
-  Trash2, FolderEdit, Layers,
+  Plus, Folder, FolderPlus, GitCompare, Trash2, FolderEdit, Layers,
+  ExternalLink, Copy, History, MoreHorizontal,
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext.jsx'
 import Button from '../ui/Button.jsx'
-import Badge from '../ui/Badge.jsx'
+import StatusBadge from '../ui/StatusBadge.jsx'
 import { fromMg } from '../../utils/weightConversions.js'
 import MacrothemeForm from './MacrothemeForm.jsx'
 import CompareView from './CompareView.jsx'
+import VersionHistoryDrawer from './VersionHistoryDrawer.jsx'
 
-const TYPE_COLORS = {
-  Compresse: 'accent',
-  Capsule:   'ok',
-  Polveri:   'caution',
-  Liquidi:   'neutral',
+const TYPE_DOT = {
+  Compresse: 'bg-galenic-accent',
+  Capsule:   'bg-galenic-ok',
+  Polveri:   'bg-yellow-400',
+  Liquidi:   'bg-blue-400',
 }
 
 export default function FormulaList() {
   const {
-    formulas, openFormula, deleteFormula, newFormula,
+    formulas, openFormula, deleteFormula, newFormula, saveFormula,
     macrothemes, addMacrotheme, updateMacrotheme, deleteMacrotheme,
     setMacrothemeForFormula,
   } = useApp()
 
-  const [selectedMacroId, setSelectedMacroId] = useState(macrothemes[0]?.id ?? null)
-  const [expandedGroups,  setExpandedGroups]  = useState(new Set())
-  const [compareSelection, setCompareSelection] = useState([])  // array di formula IDs (max 2)
-  const [compareModal,    setCompareModal]    = useState(null)  // { a, b }
-  const [macroModal,      setMacroModal]      = useState(null)  // { mode, initial, id }
+  const [selectedMacroId,  setSelectedMacroId]  = useState(macrothemes[0]?.id ?? null)
+  const [compareSelection, setCompareSelection] = useState([])
+  const [compareModal,     setCompareModal]     = useState(null)
+  const [macroModal,       setMacroModal]       = useState(null)
+  const [historyGroup,     setHistoryGroup]     = useState(null)  // gruppo prodotto per cronologia
 
-  // Mantieni selezione valida
-  const activeMacro = macrothemes.find(m => m.id === selectedMacroId) ?? macrothemes[0]
+  const activeMacro   = macrothemes.find(m => m.id === selectedMacroId) ?? macrothemes[0]
   const activeMacroId = activeMacro?.id
 
-  // Conta formule per macrotheme
   const countsByMacro = useMemo(() => {
     const counts = {}
     formulas.forEach(f => {
@@ -44,7 +43,7 @@ export default function FormulaList() {
     return counts
   }, [formulas])
 
-  // Raggruppa per productGroupId nel macrotheme attivo
+  // Raggruppa per productGroupId; ogni "card" = ultimo prodotto del gruppo
   const productGroups = useMemo(() => {
     const inMacro = formulas.filter(f => (f.macrothemeId || null) === activeMacroId)
     const groups = new Map()
@@ -53,7 +52,6 @@ export default function FormulaList() {
       if (!groups.has(groupId)) groups.set(groupId, [])
       groups.get(groupId).push(f)
     })
-    // Ordina versioni per versionLabel desc dentro ogni gruppo
     return Array.from(groups.entries()).map(([groupId, versions]) => {
       versions.sort((a, b) => (b.versionLabel || '').localeCompare(a.versionLabel || ''))
       return { groupId, versions, latest: versions[0] }
@@ -62,19 +60,10 @@ export default function FormulaList() {
     )
   }, [formulas, activeMacroId])
 
-  function toggleGroup(groupId) {
-    setExpandedGroups(prev => {
-      const next = new Set(prev)
-      if (next.has(groupId)) next.delete(groupId)
-      else next.add(groupId)
-      return next
-    })
-  }
-
   function toggleCompare(formulaId) {
     setCompareSelection(prev => {
       if (prev.includes(formulaId)) return prev.filter(id => id !== formulaId)
-      if (prev.length >= 2) return [prev[1], formulaId]   // FIFO: keep last 2
+      if (prev.length >= 2) return [prev[1], formulaId]
       return [...prev, formulaId]
     })
   }
@@ -83,6 +72,26 @@ export default function FormulaList() {
     if (compareSelection.length !== 2) return
     const [a, b] = compareSelection.map(id => formulas.find(f => f.id === id))
     if (a && b) setCompareModal({ a, b })
+  }
+
+  function handleStatusChange(formula, newStatus) {
+    saveFormula({ ...formula, status: newStatus })
+  }
+
+  function handleDuplicate(formula) {
+    const now = new Date().toISOString()
+    const dup = {
+      ...formula,
+      id: `frm_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      productGroupId: `frm_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      name: `${formula.name} (copia)`,
+      versionLabel: 'v1.0',
+      versionNote: '',
+      status: 'draft',
+      createdAt: now,
+      updatedAt: now,
+    }
+    saveFormula(dup)
   }
 
   function handleCreateMacro(name) {
@@ -98,24 +107,23 @@ export default function FormulaList() {
 
   function handleDeleteMacro(id) {
     if (!window.confirm('Eliminare questo macrotema? Le formule contenute saranno spostate in "Compresse".')) return
-    // Sposta formule al primo macrotheme auto disponibile
     const fallback = macrothemes.find(m => m.kind === 'auto')
     if (fallback) {
-      formulas.filter(f => f.macrothemeId === id).forEach(f => {
-        setMacrothemeForFormula(f.id, fallback.id)
-      })
+      formulas.filter(f => f.macrothemeId === id).forEach(f =>
+        setMacrothemeForFormula(f.id, fallback.id),
+      )
     }
     deleteMacrotheme(id)
     if (selectedMacroId === id) setSelectedMacroId(fallback?.id ?? null)
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-5">
 
-      {/* ── Pannello sinistro: macrotemi ────────────────────────────────── */}
-      <aside className="space-y-2">
-        <div className="flex items-center justify-between mb-1">
-          <h3 className="text-xs font-mono font-semibold text-galenic-muted uppercase tracking-wider">
+      {/* ── Sinistra: macrotemi ────────────────────────────────────────── */}
+      <aside className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-semibold text-galenic-muted uppercase tracking-wider">
             Macrotemi
           </h3>
           <button
@@ -127,7 +135,7 @@ export default function FormulaList() {
           </button>
         </div>
 
-        <div className="space-y-1">
+        <div className="space-y-0.5 bg-galenic-surface border border-galenic-border rounded-xl p-2 shadow-sm">
           {macrothemes.map(m => {
             const isActive = m.id === activeMacroId
             const count = countsByMacro[m.id] || 0
@@ -136,33 +144,36 @@ export default function FormulaList() {
                 <button
                   onClick={() => { setSelectedMacroId(m.id); setCompareSelection([]) }}
                   className={[
-                    'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-all',
+                    'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-left transition-all',
                     isActive
-                      ? 'bg-galenic-accent/10 border border-galenic-accent/30 text-galenic-accent'
-                      : 'border border-transparent text-galenic-muted hover:text-galenic-primary hover:bg-galenic-elevated/60',
+                      ? 'bg-galenic-accent/12 text-galenic-accent font-medium'
+                      : 'text-galenic-muted hover:text-galenic-primary hover:bg-galenic-elevated/60',
                   ].join(' ')}
                 >
-                  <Folder size={13} className={isActive ? 'text-galenic-accent' : 'opacity-60'} />
-                  <span className="text-xs font-medium truncate flex-1">{m.name}</span>
-                  <span className="text-xs font-mono opacity-60 tabular-nums">{count}</span>
+                  <Folder size={12} className={isActive ? 'text-galenic-accent' : 'opacity-60'} />
+                  <span className="text-xs truncate flex-1">{m.name}</span>
+                  <span className={[
+                    'text-xs font-mono tabular-nums px-1.5 rounded',
+                    isActive ? 'text-galenic-accent' : 'text-galenic-muted/60',
+                  ].join(' ')}>
+                    {count}
+                  </span>
                 </button>
-
-                {/* Azioni hover (solo per custom) */}
                 {m.kind === 'custom' && (
-                  <div className="absolute right-1 top-1/2 -translate-y-1/2 hidden group-hover:flex gap-0.5 bg-galenic-surface/95 backdrop-blur rounded">
+                  <div className="absolute right-8 top-1/2 -translate-y-1/2 hidden group-hover:flex gap-0.5 bg-galenic-surface/95 backdrop-blur rounded">
                     <button
                       onClick={(e) => { e.stopPropagation(); setMacroModal({ mode: 'rename', initial: m.name, id: m.id }) }}
                       title="Rinomina"
                       className="p-1 rounded text-galenic-muted hover:text-galenic-accent"
                     >
-                      <FolderEdit size={11} />
+                      <FolderEdit size={10} />
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDeleteMacro(m.id) }}
                       title="Elimina"
                       className="p-1 rounded text-galenic-muted hover:text-galenic-danger"
                     >
-                      <Trash2 size={11} />
+                      <Trash2 size={10} />
                     </button>
                   </div>
                 )}
@@ -172,24 +183,23 @@ export default function FormulaList() {
         </div>
       </aside>
 
-      {/* ── Pannello destro: prodotti del macrotheme attivo ─────────────── */}
+      {/* ── Destra: griglia card prodotti ──────────────────────────────── */}
       <div>
-        {/* Header con azioni */}
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <div>
-            <h2 className="text-sm font-mono font-semibold text-galenic-primary uppercase tracking-widest">
-              {activeMacro?.name || 'Tutte le formule'}
+            <h2 className="text-base font-semibold text-galenic-primary">
+              {activeMacro?.name || 'Tutti i progetti'}
             </h2>
-            <p className="text-xs font-mono text-galenic-muted mt-0.5">
+            <p className="text-xs font-mono text-galenic-muted/70 mt-0.5">
               {productGroups.length} {productGroups.length === 1 ? 'prodotto' : 'prodotti'} ·
-              {' '}{productGroups.reduce((s, g) => s + g.versions.length, 0)} versioni totali
+              {' '}{productGroups.reduce((s, g) => s + g.versions.length, 0)} versioni
             </p>
           </div>
           <div className="flex items-center gap-2">
             {compareSelection.length === 2 && (
               <Button variant="subtle" size="sm" onClick={openCompare}>
                 <GitCompare size={12} className="mr-1.5" />
-                Confronta {compareSelection.length}/2
+                Confronta 2/2
               </Button>
             )}
             <Button variant="primary" onClick={() => newFormula({ macrothemeId: activeMacroId })}>
@@ -199,33 +209,28 @@ export default function FormulaList() {
           </div>
         </div>
 
-        {/* Lista gruppi prodotto */}
         {productGroups.length === 0 ? (
-          <div className="bg-galenic-surface border border-galenic-border rounded-xl py-12 text-center">
-            <div className="text-xs font-mono text-galenic-muted/60">
-              Nessuna formula in <span className="text-galenic-primary">{activeMacro?.name}</span>
+          <div className="bg-galenic-surface border border-dashed border-galenic-border rounded-xl py-16 text-center shadow-sm">
+            <div className="text-sm font-medium text-galenic-muted/70 mb-2">
+              Nessun prodotto in <span className="text-galenic-primary">{activeMacro?.name}</span>
             </div>
             <button
               onClick={() => newFormula({ macrothemeId: activeMacroId })}
-              className="mt-3 text-xs font-mono text-galenic-accent hover:opacity-80"
+              className="text-xs font-mono text-galenic-accent hover:opacity-80"
             >
-              + Crea la prima formula
+              + Crea il primo progetto
             </button>
           </div>
         ) : (
-          <div className="bg-galenic-surface border border-galenic-border rounded-xl overflow-hidden divide-y divide-galenic-border">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
             {productGroups.map(group => (
-              <ProductGroupRow
+              <ProductCard
                 key={group.groupId}
                 group={group}
-                expanded={expandedGroups.has(group.groupId)}
-                onToggle={() => toggleGroup(group.groupId)}
-                compareSelection={compareSelection}
-                onToggleCompare={toggleCompare}
                 openFormula={openFormula}
-                deleteFormula={deleteFormula}
-                macrothemes={macrothemes}
-                onChangeMacro={(formulaId, macroId) => setMacrothemeForFormula(formulaId, macroId)}
+                onDuplicate={handleDuplicate}
+                onShowHistory={() => setHistoryGroup(group)}
+                onStatusChange={handleStatusChange}
               />
             ))}
           </div>
@@ -246,124 +251,101 @@ export default function FormulaList() {
           onClose={() => setCompareModal(null)}
         />
       )}
+      <VersionHistoryDrawer
+        group={historyGroup}
+        compareSelection={compareSelection}
+        onToggleCompare={toggleCompare}
+        onClose={() => setHistoryGroup(null)}
+        onOpen={(f) => { openFormula(f); setHistoryGroup(null) }}
+        onDelete={(id) => {
+          if (window.confirm('Eliminare questa versione?')) deleteFormula(id)
+        }}
+        onCompareSelected={() => { openCompare(); setHistoryGroup(null) }}
+        macrothemes={macrothemes}
+      />
     </div>
   )
 }
 
-// ── Riga gruppo prodotto (espandibile con elenco versioni) ─────────────────
-function ProductGroupRow({
-  group, expanded, onToggle, compareSelection, onToggleCompare,
-  openFormula, deleteFormula, macrothemes, onChangeMacro,
-}) {
+// ── Single Project Card (HubSpot-style) ────────────────────────────────────
+function ProductCard({ group, openFormula, onDuplicate, onShowHistory, onStatusChange }) {
   const { latest, versions } = group
   const unit = latest.targetWeightUnit || 'mg'
   const w    = fromMg(latest.targetWeightMg, unit)
 
   return (
-    <div className="px-4 py-3">
-      {/* Header gruppo */}
-      <div className="flex items-center gap-3">
-        <button onClick={onToggle} className="text-galenic-muted hover:text-galenic-primary transition-colors">
-          {expanded
-            ? <ChevronDown size={14} />
-            : <ChevronRight size={14} />}
-        </button>
+    <div className="group relative bg-galenic-surface border border-galenic-border rounded-xl p-4 shadow-sm hover:shadow-md hover:border-galenic-accent/30 transition-all">
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium text-galenic-primary truncate">{latest.name}</span>
-            <Badge variant={TYPE_COLORS[latest.type] || 'neutral'}>{latest.type}</Badge>
-            {versions.length > 1 && (
-              <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-galenic-elevated border border-galenic-border text-galenic-muted">
-                <Layers size={9} className="inline mr-0.5 -mt-0.5" />
-                {versions.length} versioni
-              </span>
-            )}
-            <span className="text-xs font-mono text-galenic-muted/60">
-              · {latest.versionLabel || `v${latest.version}`} · {w.toFixed(unit === 'mg' ? 0 : 3)} {unit}
-            </span>
-          </div>
-          {latest.versionNote && (
-            <div className="text-xs font-mono text-galenic-muted/60 italic mt-0.5 truncate">
-              "{latest.versionNote}"
-            </div>
-          )}
+      {/* Type indicator (corner ribbon) */}
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div className={`w-2 h-2 rounded-full ${TYPE_DOT[latest.type] || 'bg-galenic-muted'} shrink-0`} />
+          <span className="text-xs font-mono uppercase tracking-wider text-galenic-muted/70">
+            {latest.type}
+          </span>
         </div>
-
-        {/* Dropdown cambio macrotheme */}
-        <select
-          value={latest.macrothemeId || ''}
-          onChange={e => versions.forEach(v => onChangeMacro(v.id, e.target.value))}
-          onClick={e => e.stopPropagation()}
-          title="Sposta in altro macrotema"
-          className="bg-galenic-elevated border border-galenic-border rounded-lg px-2 py-1 text-xs font-mono text-galenic-muted hover:text-galenic-primary outline-none focus:border-galenic-accent transition-colors"
-        >
-          {macrothemes.map(m => (
-            <option key={m.id} value={m.id}>{m.name}</option>
-          ))}
-        </select>
-
-        <Button size="sm" variant="primary" onClick={() => openFormula(latest)}>
-          Apri
-        </Button>
+        <StatusBadge
+          status={latest.status}
+          editable
+          onChange={(newStatus) => onStatusChange(latest, newStatus)}
+        />
       </div>
 
-      {/* Versioni espanse */}
-      {expanded && (
-        <div className="mt-3 ml-7 border-l-2 border-galenic-border/40 pl-4 space-y-1">
-          {versions.map(v => {
-            const isSelected = compareSelection.includes(v.id)
-            return (
-              <div
-                key={v.id}
-                className={[
-                  'flex items-center gap-3 px-2 py-1.5 rounded-md transition-all',
-                  isSelected
-                    ? 'bg-galenic-accent/10 border border-galenic-accent/30'
-                    : 'border border-transparent hover:bg-galenic-elevated/40',
-                ].join(' ')}
-              >
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => onToggleCompare(v.id)}
-                  className="accent-galenic-accent"
-                />
-                <span className="text-xs font-mono font-semibold text-galenic-accent w-12 shrink-0">
-                  {v.versionLabel || `v${v.version}`}
-                </span>
-                <div className="flex-1 min-w-0">
-                  {v.versionNote
-                    ? <div className="text-xs font-mono text-galenic-primary truncate">"{v.versionNote}"</div>
-                    : <div className="text-xs font-mono text-galenic-muted/40 italic truncate">— nessuna nota —</div>
-                  }
-                </div>
-                <Badge variant={v.status === 'finalized' ? 'ok' : 'neutral'}>
-                  {v.status === 'finalized' ? 'Finalizzata' : 'Bozza'}
-                </Badge>
-                <span className="text-xs font-mono text-galenic-muted/60 hidden sm:inline">
-                  {new Date(v.updatedAt).toLocaleDateString('it-IT')}
-                </span>
-                <button
-                  onClick={() => openFormula(v)}
-                  className="text-xs font-mono text-galenic-accent hover:opacity-80 transition-opacity"
-                >
-                  Apri
-                </button>
-                <button
-                  onClick={() => {
-                    if (window.confirm(`Eliminare ${v.versionLabel || `v${v.version}`}?`)) deleteFormula(v.id)
-                  }}
-                  className="text-galenic-muted hover:text-galenic-danger transition-colors"
-                  title="Elimina versione"
-                >
-                  <Trash2 size={11} />
-                </button>
-              </div>
-            )
-          })}
-        </div>
+      {/* Name */}
+      <h3 className="text-sm font-semibold text-galenic-primary leading-tight mb-1 truncate">
+        {latest.name}
+      </h3>
+
+      {/* Version note */}
+      {latest.versionNote && (
+        <p className="text-xs font-mono text-galenic-muted/60 italic line-clamp-2 mb-2 leading-snug">
+          "{latest.versionNote}"
+        </p>
       )}
+
+      {/* Meta row */}
+      <div className="flex items-center gap-2 text-xs font-mono text-galenic-muted/60 mb-3 flex-wrap">
+        <span className="text-galenic-accent font-semibold">
+          {latest.versionLabel || `v${latest.version || 1}`}
+        </span>
+        {versions.length > 1 && (
+          <span className="flex items-center gap-0.5">
+            <Layers size={9} />
+            {versions.length}
+          </span>
+        )}
+        <span>·</span>
+        <span>{w.toFixed(unit === 'mg' ? 0 : 3)} {unit}</span>
+        <span>·</span>
+        <span>{new Date(latest.updatedAt).toLocaleDateString('it-IT')}</span>
+      </div>
+
+      {/* Hover actions */}
+      <div className="flex items-center gap-1 pt-2 border-t border-galenic-border/40">
+        <button
+          onClick={() => openFormula(latest)}
+          className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-xs font-medium text-galenic-accent hover:bg-galenic-accent/10 transition-colors"
+        >
+          <ExternalLink size={11} />
+          Apri
+        </button>
+        <button
+          onClick={() => onDuplicate(latest)}
+          title="Duplica come nuovo progetto"
+          className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium text-galenic-muted hover:text-galenic-primary hover:bg-galenic-elevated transition-colors"
+        >
+          <Copy size={11} />
+          <span className="hidden lg:inline">Duplica</span>
+        </button>
+        <button
+          onClick={onShowHistory}
+          title="Cronologia versioni"
+          className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium text-galenic-muted hover:text-galenic-primary hover:bg-galenic-elevated transition-colors"
+        >
+          <History size={11} />
+          <span className="hidden lg:inline">{versions.length}</span>
+        </button>
+      </div>
     </div>
   )
 }

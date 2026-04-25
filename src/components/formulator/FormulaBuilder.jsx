@@ -14,6 +14,7 @@ import FillVisualization from './FillVisualization.jsx'
 import BatchScalingPanel from './BatchScalingPanel.jsx'
 import QuickActions from './QuickActions.jsx'
 import VersionNoteModal from './VersionNoteModal.jsx'
+import StatusBadge from '../ui/StatusBadge.jsx'
 import { openLabReportWindow } from '../../utils/pdfReport.js'
 
 // Lazy-load the chart so recharts doesn't bloat the initial bundle
@@ -71,31 +72,12 @@ export default function FormulaBuilder() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Finalized toggle */}
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={activeFormula.status === 'finalized'}
-              onChange={e => setFormulaField('status', e.target.checked ? 'finalized' : 'draft')}
-              className="sr-only"
-            />
-            <span
-              className={[
-                'w-8 h-4 flex items-center px-0.5 rounded-full transition-colors',
-                activeFormula.status === 'finalized' ? 'bg-galenic-ok' : 'bg-galenic-elevated border border-galenic-border',
-              ].join(' ')}
-            >
-              <span
-                className={[
-                  'w-3 h-3 rounded-full bg-galenic-surface transition-transform shadow-sm',
-                  activeFormula.status === 'finalized' ? 'translate-x-4' : 'translate-x-0',
-                ].join(' ')}
-              />
-            </span>
-            <span className="text-xs font-mono text-galenic-muted hidden sm:inline">
-              {activeFormula.status === 'finalized' ? 'Finalizzata' : 'Bozza'}
-            </span>
-          </label>
+          {/* Status lifecycle dropdown */}
+          <StatusBadge
+            status={activeFormula.status}
+            editable
+            onChange={(newStatus) => setFormulaField('status', newStatus)}
+          />
 
           <Button
             variant="ghost"
@@ -125,9 +107,9 @@ export default function FormulaBuilder() {
             <Save size={14} className="mr-1.5" />
             Salva
           </Button>
-          <Button variant="primary" size="sm" onClick={() => handleSave('finalized')}>
+          <Button variant="primary" size="sm" onClick={() => handleSave('ready')}>
             <CheckCircle size={14} className="mr-1.5" />
-            Finalizza
+            Pubblica
           </Button>
         </div>
       </div>

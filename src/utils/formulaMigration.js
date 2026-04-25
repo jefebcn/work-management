@@ -1,4 +1,5 @@
 import { suggestMacrothemeId } from './macrothemeAutoSuggest.js'
+import { migrateStatus } from './statusLifecycle.js'
 
 /**
  * Migra una formula al nuovo schema (back-compat).
@@ -21,6 +22,9 @@ export function migrateFormula(f, macrothemes) {
   if (out.versionNote == null) {
     out.versionNote = ''
   }
+
+  // Migra status da binario {draft|finalized} al lifecycle a 4 stati
+  out.status = migrateStatus(out.status)
 
   return out
 }

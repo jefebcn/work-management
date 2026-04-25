@@ -7,7 +7,7 @@ import { useMacrothemes } from '../hooks/useMacrothemes.js'
 const AppContext = createContext(null)
 
 export function AppProvider({ children }) {
-  const [currentModule, setCurrentModule] = useState('inventory')
+  const [currentModule, setCurrentModule] = useState('dashboard')
 
   const inventory       = useInventory()
   const packagingStore  = usePackaging()
