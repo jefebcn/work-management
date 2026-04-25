@@ -197,7 +197,10 @@ export default function IngredientRow({ computedRow, rowIndex = 0, unitMode = 'd
 
       {/* % of total — hidden on mobile */}
       <td className="hidden sm:table-cell px-4 py-3 tabular-nums text-center align-middle">
-        <span className={`font-mono text-sm ${computedRow.percentOfTotal > 100 ? 'text-galenic-danger' : 'text-galenic-primary'}`}>
+        <span
+          key={Math.round(computedRow.percentOfTotal * 100)}
+          className={`font-mono text-sm num-fade-in ${computedRow.percentOfTotal > 100 ? 'text-galenic-danger' : 'text-galenic-primary'}`}
+        >
           {computedRow.percentOfTotal.toFixed(2)}%
         </span>
       </td>
@@ -252,9 +255,11 @@ export default function IngredientRow({ computedRow, rowIndex = 0, unitMode = 'd
       {/* NRV % — hidden on mobile */}
       <td className="hidden sm:table-cell px-4 py-3 text-center align-middle">
         {computedRow.nrvPercent !== null ? (
-          <Badge variant={nrvVariant(computedRow.nrvPercent)}>
-            {computedRow.nrvPercent.toFixed(1)}% VNR
-          </Badge>
+          <span key={Math.round(computedRow.nrvPercent)} className="num-fade-in inline-flex">
+            <Badge variant={nrvVariant(computedRow.nrvPercent)}>
+              {computedRow.nrvPercent.toFixed(1)}% VNR
+            </Badge>
+          </span>
         ) : (
           <span className="text-galenic-muted text-xs font-mono">N/D</span>
         )}
