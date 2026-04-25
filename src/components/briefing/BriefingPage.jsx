@@ -24,7 +24,7 @@ const EMPTY_FORM = {
   format: '', targetPrice: '', packagingRequested: '', briefingNotes: '',
 }
 
-export default function BriefingPage() {
+export default function BriefingPage({ commercialMode = false }) {
   const { macrothemes, importBriefing, setCurrentModule } = useApp()
 
   const [formData, setFormData]     = useState(EMPTY_FORM)
@@ -317,17 +317,19 @@ export default function BriefingPage() {
                     </div>
                   )}
 
-                  <div className="border-t border-galenic-border/60 pt-3">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleCreateHere}
-                      className="w-full justify-center"
-                    >
-                      <FlaskConical size={14} className="mr-1.5" />
-                      Crea Progetto e Apri nel Formulatore
-                    </Button>
-                  </div>
+                  {!commercialMode && (
+                    <div className="border-t border-galenic-border/60 pt-3">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleCreateHere}
+                        className="w-full justify-center"
+                      >
+                        <FlaskConical size={14} className="mr-1.5" />
+                        Crea Progetto e Apri nel Formulatore
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </>
             ) : (
