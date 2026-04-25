@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { FlaskConical } from 'lucide-react'
 import { AppProvider, useApp } from './context/AppContext.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
@@ -10,10 +10,24 @@ import RawMaterialsPage from './components/inventory/RawMaterialsPage.jsx'
 import PackagingPage from './components/inventory/PackagingPage.jsx'
 import FormulatorPage from './components/formulator/FormulatorPage.jsx'
 import BriefingPage from './components/briefing/BriefingPage.jsx'
+import CommandBar from './components/ui/CommandBar.jsx'
 
 function AppShell() {
   const { currentModule } = useApp()
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen]     = useState(false)
+  const [commandOpen, setCommandOpen]     = useState(false)
+
+  // Global Cmd+K / Ctrl+K listener
+  useEffect(() => {
+    function onKeyDown(e) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setCommandOpen(v => !v)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   return (
     <div className="min-h-screen bg-galenic-base flex">
@@ -28,7 +42,7 @@ function AppShell() {
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex-1 flex flex-col md:ml-56 min-h-screen min-w-0">
-        <TopBar onMenuClick={() => setSidebarOpen(prev => !prev)} />
+        <TopBar onMenuClick={() => setSidebarOpen(prev => !prev)} onCommandOpen={() => setCommandOpen(true)} />
         <PageWrapper>
           {currentModule === 'dashboard' && <DashboardPage />}
           {currentModule === 'inventory' && (
@@ -41,6 +55,8 @@ function AppShell() {
           {currentModule === 'briefing'   && <BriefingPage />}
         </PageWrapper>
       </div>
+
+      <CommandBar open={commandOpen} onClose={() => setCommandOpen(false)} />
     </div>
   )
 }

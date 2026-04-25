@@ -1,5 +1,5 @@
 import React from 'react'
-import { Menu, Sun, Moon, Plus, ChevronRight } from 'lucide-react'
+import { Menu, Sun, Moon, Plus, ChevronRight, Search } from 'lucide-react'
 import { useApp } from '../../context/AppContext.jsx'
 import { useTheme } from '../../context/ThemeContext.jsx'
 
@@ -9,7 +9,7 @@ const MODULE_LABELS = {
   inventory:  'Inventario',
 }
 
-export default function TopBar({ onMenuClick }) {
+export default function TopBar({ onMenuClick, onCommandOpen }) {
   const {
     currentModule, activeFormula,
     macrothemes, newFormula, setCurrentModule,
@@ -72,6 +72,17 @@ export default function TopBar({ onMenuClick }) {
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
+        {/* Cmd+K search trigger */}
+        <button
+          onClick={onCommandOpen}
+          className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono text-galenic-muted/70 bg-galenic-elevated/60 border border-galenic-border/60 hover:border-galenic-accent/30 hover:text-galenic-primary transition-all"
+          title="Ricerca rapida (⌘K)"
+        >
+          <Search size={12} />
+          Cerca…
+          <kbd className="text-galenic-muted/50 text-xs">⌘K</kbd>
+        </button>
+
         {/* Quick create */}
         <button
           onClick={handleQuickCreate}
@@ -79,7 +90,7 @@ export default function TopBar({ onMenuClick }) {
           title="Crea nuova formula"
         >
           <Plus size={13} />
-          Nuova Formula
+          Nuova
         </button>
 
         <button

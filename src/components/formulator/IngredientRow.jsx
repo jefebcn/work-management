@@ -114,9 +114,21 @@ export default function IngredientRow({ computedRow, rowIndex = 0 }) {
       {/* Material name */}
       <td className="px-4 py-3">
         <div className="font-medium text-sm text-galenic-primary">{rm.name}</div>
-        {rm.activeNutrient && (
-          <div className="text-xs text-galenic-muted mt-0.5">{rm.activeNutrient}</div>
-        )}
+        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+          {rm.activeNutrient && (
+            <span className="text-xs text-galenic-muted">{rm.activeNutrient}</span>
+          )}
+          {rm.titration > 0 && rm.titration < 100 && (
+            <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-galenic-accent/10 text-galenic-accent border border-galenic-accent/20 shrink-0">
+              {rm.titration}% tit.
+            </span>
+          )}
+          {rm.purity > 0 && rm.purity < 100 && (
+            <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-galenic-elevated text-galenic-muted border border-galenic-border shrink-0">
+              {rm.purity}% pur.
+            </span>
+          )}
+        </div>
       </td>
 
       {/* QUANTITÀ — Q/dose on top, Q/die below */}
@@ -188,7 +200,7 @@ export default function IngredientRow({ computedRow, rowIndex = 0 }) {
         </span>
       </td>
 
-      {/* APPORTO REALE — A/dose on top, A/die below */}
+      {/* TARGET ATTIVO — reverse-calc from active nutrient content */}
       <td className="px-4 py-2">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-1.5">
@@ -203,9 +215,12 @@ export default function IngredientRow({ computedRow, rowIndex = 0 }) {
               onFocus={!isReadOnly && canApt ? () => { focused.current = 'aDose' } : undefined}
               onBlur={!isReadOnly && canApt ? e => { focused.current = null; onAptDose(e) } : undefined}
               readOnly={isReadOnly || !canApt}
+              title={canApt ? 'Inserisci mg di attivo per dose → calcola peso estratto automaticamente' : 'Titolazione non impostata'}
               className={inputCls(!isReadOnly && canApt)}
             />
-            <span className={lbl}>mg/dose</span>
+            <span className={`${lbl} ${canApt ? 'text-galenic-accent/80' : ''}`}>
+              {canApt ? 'att./dose' : 'mg/dose'}
+            </span>
           </div>
           <div className="flex items-center gap-1.5">
             <input
@@ -219,10 +234,11 @@ export default function IngredientRow({ computedRow, rowIndex = 0 }) {
               onFocus={!isReadOnly && canApt ? () => { focused.current = 'aDie' } : undefined}
               onBlur={!isReadOnly && canApt ? e => { focused.current = null; onAptDie(e) } : undefined}
               readOnly={isReadOnly || !canApt}
+              title={canApt ? 'Inserisci mg di attivo/die → calcola peso estratto automaticamente' : 'Titolazione non impostata'}
               className={inputCls(!isReadOnly && canApt, computedRow.exceedsMaxLimit)}
             />
-            <span className={`${lbl} ${computedRow.exceedsMaxLimit ? 'text-galenic-danger font-semibold' : ''}`}>
-              mg/die
+            <span className={`${lbl} ${computedRow.exceedsMaxLimit ? 'text-galenic-danger font-semibold' : canApt ? 'text-galenic-accent/80' : ''}`}>
+              {canApt ? 'att./die' : 'mg/die'}
             </span>
           </div>
           {computedRow.exceedsMaxLimit && (
