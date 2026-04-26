@@ -347,6 +347,43 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
     })
   }
 
+  // Triple-sync: derive amountMg from % of target weight
+  function setIngredientPercent(rowId, percent) {
+    setActiveFormula(prev => {
+      if (!prev) return prev
+      const tw = prev.targetWeightMg || 0
+      const pct = parseFloat(percent) || 0
+      const newAmount = tw > 0 ? (tw * pct) / 100 : 0
+      return {
+        ...prev,
+        ingredients: prev.ingredients.map(i =>
+          i.rowId === rowId ? { ...i, amountMg: newAmount } : i,
+        ),
+      }
+    })
+  }
+
+  // Triple-sync: derive amountMg from desired active nutrient (per dose)
+  // Uses the raw material's purity × titration to back-calculate weight.
+  function setIngredientActive(rowId, activeMg) {
+    setActiveFormula(prev => {
+      if (!prev) return prev
+      const ing = prev.ingredients.find(i => i.rowId === rowId)
+      if (!ing) return prev
+      const rm = rawMaterials.find(r => r.id === ing.rawMaterialId)
+      if (!rm) return prev
+      const factor = ((rm.purity || 100) / 100) * ((rm.titration || 100) / 100)
+      if (factor <= 0) return prev
+      const newAmount = (parseFloat(activeMg) || 0) / factor
+      return {
+        ...prev,
+        ingredients: prev.ingredients.map(i =>
+          i.rowId === rowId ? { ...i, amountMg: newAmount } : i,
+        ),
+      }
+    })
+  }
+
   function setIngredientFiller(rowId) {
     setActiveFormula(prev => {
       if (!prev) return prev
@@ -387,6 +424,8 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
     addAntiCakingIngredient,
     removeIngredient,
     setIngredientAmount,
+    setIngredientPercent,
+    setIngredientActive,
     setIngredientFiller,
     setPackagingId,
     createSnapshot,

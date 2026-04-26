@@ -104,6 +104,28 @@
   .galenic-table tbody tr:hover {
     @apply bg-galenic-accent/5;
   }
+
+  /* HubSpot-style cells for ingredient row triple-sync inputs */
+  .cell-input {
+    @apply w-full font-mono text-sm px-2.5 py-1.5 rounded-md tabular-nums
+           bg-white border border-slate-200 text-slate-900 outline-none
+           transition-colors duration-150
+           hover:border-slate-300
+           focus:border-[#00a4bd] focus:ring-1 focus:ring-[#00a4bd];
+  }
+  .cell-input-lg {
+    @apply text-base font-semibold;
+  }
+  .cell-output {
+    @apply w-full font-mono text-sm px-2.5 py-1.5 rounded-md tabular-nums
+           bg-gray-50 border border-transparent text-slate-700 cursor-default;
+  }
+  .cell-input[readonly] {
+    @apply bg-gray-50 border-transparent cursor-default text-slate-500;
+  }
+  .cell-unit {
+    @apply text-[10px] uppercase tracking-wider text-slate-400 font-mono;
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -143,3 +165,12 @@
   50%       { opacity: 0.55; }
 }
 .fill-pulse-red { animation: fillPulse 0.8s ease-in-out infinite; }
+
+/* Triple-sync flash — when an ingredient cell is updated by sync (not by direct input),
+   briefly tint the value blue + soft cyan background, then ease back to normal. */
+@keyframes cellSyncFlash {
+  0%   { background-color: rgb(207 250 254); color: rgb(8 47 73); }   /* cyan-100 / cyan-950 */
+  60%  { background-color: rgb(207 250 254); color: rgb(8 47 73); }
+  100% { background-color: transparent;       color: inherit; }
+}
+.cell-flash { animation: cellSyncFlash 500ms ease-out; }

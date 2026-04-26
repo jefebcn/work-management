@@ -1,19 +1,33 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Trash2 } from 'lucide-react'
+import { Trash2, Beaker } from 'lucide-react'
 import { useApp } from '../../context/AppContext.jsx'
 import Badge from '../ui/Badge.jsx'
 import FillerToggle from './FillerToggle.jsx'
 import { fromMg, toMg } from '../../utils/weightConversions.js'
 
-// All four input fields are always visible.
-// Changing any one field back-calculates amountMg and the other three update live.
-//
-//  QUANTITÀ           APPORTO REALE
-//  [___] {unit}/dose  [___] mg/dose
-//  [___] {unit}/die   [___] mg/die
+// Triple-sync ingredient row.
+// Three primary editable inputs synced via amountMg as canonical state:
+//   1. Quantità  (mg/dose ↔ mg/die toggle via unitMode)
+//   2. % Peso    (incidence on targetWeightMg)
+//   3. Target Attivo (active per dose ↔ active per die)
+// Storage: amountMg only — % and active are derived. No drift, no redundancy.
+
+// ── Italian decimal formatting ──────────────────────────────────────────────
+function fmtDec(v, digits = 2) {
+  if (v === null || v === undefined || v === 0 || Number.isNaN(v)) return ''
+  return v.toFixed(digits).replace('.', ',')
+}
+function parseDec(str) {
+  if (!str) return 0
+  return parseFloat(String(str).replace(',', '.')) || 0
+}
 
 export default function IngredientRow({ computedRow, rowIndex = 0, unitMode = 'dose' }) {
-  const { rawMaterials, activeFormula, setIngredientAmount, removeIngredient } = useApp()
+  const {
+    rawMaterials, activeFormula,
+    setIngredientAmount, setIngredientPercent, setIngredientActive,
+    removeIngredient,
+  } = useApp()
 
   const rm = rawMaterials.find(r => r.id === computedRow.rawMaterialId)
   if (!rm) return null
@@ -23,69 +37,92 @@ export default function IngredientRow({ computedRow, rowIndex = 0, unitMode = 'd
 
   const unit          = activeFormula.targetWeightUnit || 'mg'
   const dosiAlGiorno  = activeFormula.dosiAlGiorno || 1
-  const isLiquido     = activeFormula.type === 'Liquidi'
-  const volumeMl      = isLiquido ? activeFormula.targetWeightMg / 1000 : 0
-  const factor        = (rm.purity / 100) * (rm.titration / 100)
-  const canApt        = factor > 0
+  const targetWeight  = activeFormula.targetWeightMg || 0
+  const factor        = ((rm.purity || 100) / 100) * ((rm.titration || 100) / 100)
+  const canApt        = factor > 0 && rm.activeNutrient
   const isReadOnly    = computedRow.isFiller
+  const isTitrated    = rm.titration > 0 && rm.titration < 100
 
   // ── Derived display values ─────────────────────────────────────────────────
-
   const qtyPerDose  = fromMg(computedRow.amountMg, unit)
   const qtyPerDay   = qtyPerDose * dosiAlGiorno
+  const percent     = computedRow.percentOfTotal
   const aptPerDose  = computedRow.realNutrientContribution
   const aptPerDay   = computedRow.dailyContribution
-  const concMgMl    = isLiquido && volumeMl > 0 ? computedRow.amountMg / volumeMl : 0
 
-  // ── Local string states — allow typing "0.001" without intermediate wipe ──
-  // Controlled inputs with value={fmt(computed)} wipe "0" on every keystroke
-  // because fmt(0)='' causes React to clear the input after parseFloat("0")=0.
-  // Fix: each input holds its own string; useEffect syncs from computed only
-  // when that field is not focused.
+  // ── Local string states (focused field keeps user typing intact) ──────────
+  const [qDoseStr, setQDoseStr] = useState(fmtDec(qtyPerDose))
+  const [qDieStr,  setQDieStr]  = useState(fmtDec(qtyPerDay))
+  const [pctStr,   setPctStr]   = useState(fmtDec(percent))
+  const [aDoseStr, setADoseStr] = useState(fmtDec(aptPerDose))
+  const [aDieStr,  setADieStr]  = useState(fmtDec(aptPerDay))
+  const focused = useRef(null)
 
-  const [qDoseStr, setQDoseStr] = useState('')
-  const [qDieStr,  setQDieStr]  = useState('')
-  const [aDoseStr, setADoseStr] = useState('')
-  const [aDieStr,  setADieStr]  = useState('')
-  const [concStr,  setConcStr]  = useState('')
-  const focused = useRef(null)  // 'qDose' | 'qDie' | 'aDose' | 'aDie' | 'conc' | null
+  // ── Sync flash detection — animate cells whose value changed but were NOT
+  //    just typed in (i.e. updated via triple-sync from another field). ─────
+  const prevValues = useRef({ qDose: qtyPerDose, qDie: qtyPerDay, pct: percent, aDose: aptPerDose, aDie: aptPerDay })
+  const [flash, setFlash] = useState({})
 
-  // Format: strip trailing zeros, show empty string for zero/null
-  function display(v) {
-    if (!v) return ''
-    return String(parseFloat(v.toFixed(6)))
-  }
-
-  // Sync display strings from computed values whenever they change,
-  // but skip the field the user is currently typing in.
   useEffect(() => {
-    if (focused.current !== 'qDose') setQDoseStr(display(qtyPerDose))
-    if (focused.current !== 'qDie')  setQDieStr(display(qtyPerDay))
-    if (focused.current !== 'aDose') setADoseStr(display(aptPerDose))
-    if (focused.current !== 'aDie')  setADieStr(display(aptPerDay))
-    if (focused.current !== 'conc')  setConcStr(display(concMgMl))
-  }, [qtyPerDose, qtyPerDay, aptPerDose, aptPerDay, concMgMl])
+    const next = {}
+    function check(key, oldV, newV) {
+      if (focused.current === key) return false
+      if (Math.abs(oldV - newV) > 0.001) { next[key] = Date.now(); return true }
+      return false
+    }
+    const anyChanged = [
+      check('qDose', prevValues.current.qDose, qtyPerDose),
+      check('qDie',  prevValues.current.qDie,  qtyPerDay),
+      check('pct',   prevValues.current.pct,   percent),
+      check('aDose', prevValues.current.aDose, aptPerDose),
+      check('aDie',  prevValues.current.aDie,  aptPerDay),
+    ].some(Boolean)
 
-  // ── Four handlers, each back-calculating amountMg ─────────────────────────
+    // Always refresh string state for non-focused fields so the formatted value
+    // shows up after the underlying amountMg changes.
+    if (focused.current !== 'qDose') setQDoseStr(fmtDec(qtyPerDose))
+    if (focused.current !== 'qDie')  setQDieStr(fmtDec(qtyPerDay))
+    if (focused.current !== 'pct')   setPctStr(fmtDec(percent))
+    if (focused.current !== 'aDose') setADoseStr(fmtDec(aptPerDose))
+    if (focused.current !== 'aDie')  setADieStr(fmtDec(aptPerDay))
 
-  function onQtyDose(e) {
-    setIngredientAmount(computedRow.rowId, toMg(parseFloat(e.target.value) || 0, unit))
-  }
-  function onQtyDie(e) {
-    const daily = parseFloat(e.target.value) || 0
-    setIngredientAmount(computedRow.rowId, daily > 0 ? toMg(daily, unit) / dosiAlGiorno : 0)
-  }
-  function onAptDose(e) {
-    if (!canApt) return
-    setIngredientAmount(computedRow.rowId, (parseFloat(e.target.value) || 0) / factor)
-  }
-  function onAptDie(e) {
-    if (!canApt) return
-    const daily = parseFloat(e.target.value) || 0
-    setIngredientAmount(computedRow.rowId, daily > 0 ? daily / (dosiAlGiorno * factor) : 0)
+    prevValues.current = { qDose: qtyPerDose, qDie: qtyPerDay, pct: percent, aDose: aptPerDose, aDie: aptPerDay }
+
+    if (anyChanged) {
+      setFlash(next)
+      const t = setTimeout(() => setFlash({}), 500)
+      return () => clearTimeout(t)
+    }
+  }, [qtyPerDose, qtyPerDay, percent, aptPerDose, aptPerDay])
+
+  // ── Handlers — write the canonical amountMg, derived fields update on render
+  function commit(key, value, setter) {
+    focused.current = null
+    setter(fmtDec(value))  // normalize on blur
   }
 
-  // ── Styles ─────────────────────────────────────────────────────────────────
+  function onQtyDoseChange(e) {
+    setQDoseStr(e.target.value)
+    setIngredientAmount(computedRow.rowId, toMg(parseDec(e.target.value), unit))
+  }
+  function onQtyDieChange(e) {
+    setQDieStr(e.target.value)
+    const dailyMg = toMg(parseDec(e.target.value), unit)
+    setIngredientAmount(computedRow.rowId, dosiAlGiorno > 0 ? dailyMg / dosiAlGiorno : 0)
+  }
+  function onPercentChange(e) {
+    setPctStr(e.target.value)
+    setIngredientPercent(computedRow.rowId, parseDec(e.target.value))
+  }
+  function onAptDoseChange(e) {
+    setADoseStr(e.target.value)
+    setIngredientActive(computedRow.rowId, parseDec(e.target.value))
+  }
+  function onAptDieChange(e) {
+    setADieStr(e.target.value)
+    const daily = parseDec(e.target.value)
+    setIngredientActive(computedRow.rowId, dosiAlGiorno > 0 ? daily / dosiAlGiorno : 0)
+  }
 
   function nrvVariant(pct) {
     if (pct === null) return 'neutral'
@@ -99,27 +136,25 @@ export default function IngredientRow({ computedRow, rowIndex = 0, unitMode = 'd
     ? 'bg-galenic-danger/5 border-l-2 border-galenic-danger'
     : `border-l-2 border-transparent ${rowIndex % 2 === 1 ? 'bg-galenic-elevated/25' : ''}`
 
-  // Borderless by default — ring appears only on focus (user request)
-  function inputCls(editable, danger = false) {
-    if (!editable) return 'w-full font-mono text-sm px-2 py-1 outline-none tabular-nums bg-transparent text-galenic-muted cursor-default opacity-50'
-    if (danger)   return 'w-full font-mono text-sm px-2 py-1 outline-none tabular-nums bg-transparent rounded-md text-galenic-danger focus:ring-2 focus:ring-galenic-danger focus:bg-galenic-danger/5 transition-all'
-    return 'w-full font-mono text-sm px-2 py-1 outline-none tabular-nums bg-transparent rounded-md text-galenic-primary hover:bg-galenic-elevated/60 focus:ring-2 focus:ring-galenic-accent focus:bg-galenic-elevated/80 transition-all'
+  const cellInputCls = (key, opts = {}) => {
+    const base    = opts.lg ? 'cell-input cell-input-lg' : 'cell-input'
+    const flashOn = flash[key] ? ' cell-flash' : ''
+    return base + flashOn
   }
-
-  const lbl = 'text-xs text-galenic-muted font-mono whitespace-nowrap w-16 shrink-0'
 
   return (
     <tr className={`border-b border-galenic-border hover:bg-galenic-accent/5 transition-colors ${rowBg}`}>
 
-      {/* Material name */}
-      <td className="px-3 sm:px-4 py-3">
+      {/* Material name + meta */}
+      <td className="px-3 sm:px-4 py-3 align-top">
         <div className="font-medium text-sm text-galenic-primary">{rm.name}</div>
         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
           {rm.activeNutrient && (
             <span className="text-xs text-galenic-muted">{rm.activeNutrient}</span>
           )}
-          {rm.titration > 0 && rm.titration < 100 && (
-            <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-galenic-accent/10 text-galenic-accent border border-galenic-accent/20 shrink-0">
+          {isTitrated && (
+            <span className="inline-flex items-center gap-1 text-xs font-mono px-1.5 py-0.5 rounded bg-[#00a4bd]/10 text-[#00a4bd] border border-[#00a4bd]/30 shrink-0">
+              <Beaker size={9} strokeWidth={2.5} />
               {rm.titration}% tit.
             </span>
           )}
@@ -131,133 +166,100 @@ export default function IngredientRow({ computedRow, rowIndex = 0, unitMode = 'd
         </div>
       </td>
 
-      {/* QUANTITÀ — primary field determined by unitMode; both shown on desktop */}
-      <td className="px-3 sm:px-4 py-2">
+      {/* QUANTITÀ — mg/dose primary; mg/die below */}
+      <td className="px-3 sm:px-4 py-2 align-top">
         <div className="flex flex-col gap-1.5">
-          {/* Q/dose — primary when unitMode==='dose'; on mobile hidden when die mode */}
-          <div className={`flex items-center gap-1.5 ${unitMode === 'die' ? 'hidden sm:flex opacity-50' : ''}`}>
+          <div className={unitMode === 'die' ? 'opacity-50 hidden sm:block' : ''}>
             <input
-              type="number" step="any" min="0"
+              type="text" inputMode="decimal"
               value={qDoseStr}
-              onChange={!isReadOnly ? e => {
-                setQDoseStr(e.target.value)
-                const v = parseFloat(e.target.value)
-                if (v > 0) setIngredientAmount(computedRow.rowId, toMg(v, unit))
-              } : undefined}
+              onChange={!isReadOnly ? onQtyDoseChange : undefined}
               onFocus={!isReadOnly ? () => { focused.current = 'qDose' } : undefined}
-              onBlur={!isReadOnly ? e => { focused.current = null; onQtyDose(e) } : undefined}
+              onBlur={!isReadOnly ? () => commit('qDose', qtyPerDose, setQDoseStr) : undefined}
               readOnly={isReadOnly}
-              className={inputCls(!isReadOnly)}
+              className={cellInputCls('qDose')}
             />
-            <span className={lbl}>{unit}/dose</span>
+            <div className="cell-unit mt-0.5 pl-1">{unit}/dose</div>
           </div>
-          {/* Q/die — primary when unitMode==='die'; on mobile hidden when dose mode */}
-          <div className={`flex items-center gap-1.5 ${unitMode === 'dose' ? 'hidden sm:flex opacity-50' : ''}`}>
+          <div className={unitMode === 'dose' ? 'opacity-50 hidden sm:block' : ''}>
             <input
-              type="number" step="any" min="0"
+              type="text" inputMode="decimal"
               value={qDieStr}
-              onChange={!isReadOnly ? e => {
-                setQDieStr(e.target.value)
-                const v = parseFloat(e.target.value)
-                if (v > 0) setIngredientAmount(computedRow.rowId, toMg(v, unit) / dosiAlGiorno)
-              } : undefined}
+              onChange={!isReadOnly ? onQtyDieChange : undefined}
               onFocus={!isReadOnly ? () => { focused.current = 'qDie' } : undefined}
-              onBlur={!isReadOnly ? e => { focused.current = null; onQtyDie(e) } : undefined}
+              onBlur={!isReadOnly ? () => commit('qDie', qtyPerDay, setQDieStr) : undefined}
               readOnly={isReadOnly}
-              className={inputCls(!isReadOnly)}
+              className={cellInputCls('qDie')}
             />
-            <span className={lbl}>{unit}/die</span>
+            <div className="cell-unit mt-0.5 pl-1">{unit}/die</div>
           </div>
-
-          {/* mg/mL concentration — Liquidi only */}
-          {isLiquido && (
-            <div className="flex items-center gap-1.5">
-              <input
-                type="number" step="any" min="0"
-                value={concStr}
-                onChange={!isReadOnly && volumeMl > 0 ? e => {
-                  setConcStr(e.target.value)
-                  const v = parseFloat(e.target.value)
-                  if (v > 0) setIngredientAmount(computedRow.rowId, v * volumeMl)
-                } : undefined}
-                onFocus={!isReadOnly && volumeMl > 0 ? () => { focused.current = 'conc' } : undefined}
-                onBlur={!isReadOnly && volumeMl > 0 ? e => {
-                  focused.current = null
-                  const v = parseFloat(e.target.value) || 0
-                  if (v >= 0) setIngredientAmount(computedRow.rowId, v * volumeMl)
-                } : undefined}
-                readOnly={isReadOnly || volumeMl === 0}
-                className={inputCls(!isReadOnly && volumeMl > 0) + ' border-t border-galenic-border/30 mt-0.5 pt-1.5'}
-              />
-              <span className={`${lbl} text-galenic-accent/70`}>mg/mL</span>
-            </div>
-          )}
         </div>
       </td>
 
-      {/* % of total — hidden on mobile */}
-      <td className="hidden sm:table-cell px-4 py-3 tabular-nums text-center align-middle">
-        <span
-          key={Math.round(computedRow.percentOfTotal * 100)}
-          className={`font-mono text-sm num-fade-in ${computedRow.percentOfTotal > 100 ? 'text-galenic-danger' : 'text-galenic-primary'}`}
-        >
-          {computedRow.percentOfTotal.toFixed(2)}%
-        </span>
+      {/* % PESO — now editable (was readonly before) */}
+      <td className="hidden sm:table-cell px-4 py-2 align-top">
+        <div>
+          <input
+            type="text" inputMode="decimal"
+            value={pctStr}
+            onChange={!isReadOnly ? onPercentChange : undefined}
+            onFocus={!isReadOnly ? () => { focused.current = 'pct' } : undefined}
+            onBlur={!isReadOnly ? () => commit('pct', percent, setPctStr) : undefined}
+            readOnly={isReadOnly}
+            className={cellInputCls('pct')
+              + (percent > 100 ? ' !text-galenic-danger !border-galenic-danger/40' : '')}
+          />
+          <div className="cell-unit mt-0.5 pl-1">% peso</div>
+        </div>
       </td>
 
-      {/* TARGET ATTIVO — reverse-calc, hidden on mobile */}
-      <td className="hidden sm:table-cell px-4 py-2">
+      {/* TARGET ATTIVO — emphasized when titrated */}
+      <td className="hidden sm:table-cell px-4 py-2 align-top">
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-1.5">
+          <div className={unitMode === 'die' ? 'opacity-60 hidden sm:block' : ''}>
             <input
-              type="number" step="any" min="0"
+              type="text" inputMode="decimal"
               value={aDoseStr}
-              onChange={!isReadOnly && canApt ? e => {
-                setADoseStr(e.target.value)
-                const v = parseFloat(e.target.value)
-                if (v > 0) setIngredientAmount(computedRow.rowId, v / factor)
-              } : undefined}
+              onChange={!isReadOnly && canApt ? onAptDoseChange : undefined}
               onFocus={!isReadOnly && canApt ? () => { focused.current = 'aDose' } : undefined}
-              onBlur={!isReadOnly && canApt ? e => { focused.current = null; onAptDose(e) } : undefined}
+              onBlur={!isReadOnly && canApt ? () => commit('aDose', aptPerDose, setADoseStr) : undefined}
               readOnly={isReadOnly || !canApt}
-              title={canApt ? 'Inserisci mg di attivo per dose → calcola peso estratto automaticamente' : 'Titolazione non impostata'}
-              className={inputCls(!isReadOnly && canApt)}
+              title={canApt ? 'mg di principio attivo per dose — il peso dell\'ingrediente si calcola automaticamente' : 'Materia prima senza titolazione — campo non applicabile'}
+              className={cellInputCls('aDose', { lg: isTitrated })}
+              placeholder={canApt ? '' : '—'}
             />
-            <span className={`${lbl} ${canApt ? 'text-galenic-accent/80' : ''}`}>
-              {canApt ? 'att./dose' : 'mg/dose'}
-            </span>
+            <div className={`cell-unit mt-0.5 pl-1 ${isTitrated ? 'text-[#00a4bd]' : ''}`}>
+              attivo/dose
+            </div>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className={unitMode === 'dose' ? 'opacity-60 hidden sm:block' : ''}>
             <input
-              type="number" step="any" min="0"
+              type="text" inputMode="decimal"
               value={aDieStr}
-              onChange={!isReadOnly && canApt ? e => {
-                setADieStr(e.target.value)
-                const v = parseFloat(e.target.value)
-                if (v > 0) setIngredientAmount(computedRow.rowId, v / (dosiAlGiorno * factor))
-              } : undefined}
+              onChange={!isReadOnly && canApt ? onAptDieChange : undefined}
               onFocus={!isReadOnly && canApt ? () => { focused.current = 'aDie' } : undefined}
-              onBlur={!isReadOnly && canApt ? e => { focused.current = null; onAptDie(e) } : undefined}
+              onBlur={!isReadOnly && canApt ? () => commit('aDie', aptPerDay, setADieStr) : undefined}
               readOnly={isReadOnly || !canApt}
-              title={canApt ? 'Inserisci mg di attivo/die → calcola peso estratto automaticamente' : 'Titolazione non impostata'}
-              className={inputCls(!isReadOnly && canApt, computedRow.exceedsMaxLimit)}
+              className={cellInputCls('aDie')
+                + (computedRow.exceedsMaxLimit ? ' !text-galenic-danger !border-galenic-danger/40' : '')}
+              placeholder={canApt ? '' : '—'}
             />
-            <span className={`${lbl} ${computedRow.exceedsMaxLimit ? 'text-galenic-danger font-semibold' : canApt ? 'text-galenic-accent/80' : ''}`}>
-              {canApt ? 'att./die' : 'mg/die'}
-            </span>
+            <div className={`cell-unit mt-0.5 pl-1 ${computedRow.exceedsMaxLimit ? 'text-galenic-danger font-semibold' : isTitrated ? 'text-[#00a4bd]' : ''}`}>
+              attivo/die
+            </div>
           </div>
           {computedRow.exceedsMaxLimit && (
-            <div className="text-xs text-galenic-danger">&gt; {rm.maxLimitMg} mg/die max</div>
+            <div className="text-xs text-galenic-danger font-mono">&gt; {rm.maxLimitMg} mg/die max</div>
           )}
         </div>
       </td>
 
-      {/* NRV % — hidden on mobile */}
+      {/* VNR % */}
       <td className="hidden sm:table-cell px-4 py-3 text-center align-middle">
         {computedRow.nrvPercent !== null ? (
           <span key={Math.round(computedRow.nrvPercent)} className="num-fade-in inline-flex">
             <Badge variant={nrvVariant(computedRow.nrvPercent)}>
-              {computedRow.nrvPercent.toFixed(1)}% VNR
+              {computedRow.nrvPercent.toFixed(1).replace('.', ',')}% VNR
             </Badge>
           </span>
         ) : (
@@ -265,7 +267,7 @@ export default function IngredientRow({ computedRow, rowIndex = 0, unitMode = 'd
         )}
       </td>
 
-      {/* Filler toggle — hidden on mobile */}
+      {/* Filler */}
       <td className="hidden sm:table-cell px-4 py-3 text-center align-middle">
         <FillerToggle rowId={computedRow.rowId} isFiller={computedRow.isFiller} />
       </td>

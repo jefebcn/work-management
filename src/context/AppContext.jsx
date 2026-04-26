@@ -92,6 +92,8 @@ export function AppProvider({ children }) {
     addAntiCakingIngredient: formulaStore.addAntiCakingIngredient,
     removeIngredient:        formulaStore.removeIngredient,
     setIngredientAmount:     formulaStore.setIngredientAmount,
+    setIngredientPercent:    formulaStore.setIngredientPercent,
+    setIngredientActive:     formulaStore.setIngredientActive,
     setIngredientFiller:     formulaStore.setIngredientFiller,
     setPackagingId:          formulaStore.setPackagingId,
     createSnapshot:          formulaStore.createSnapshot,
