@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { ClipboardList, AlertTriangle, CheckCircle, ChevronDown, ChevronUp, Euro, User, Package, Tag } from 'lucide-react'
+import { ClipboardList, AlertTriangle, CheckCircle, ChevronDown, ChevronUp, Euro, User, Package, Tag, Lock } from 'lucide-react'
 import { useApp } from '../../context/AppContext.jsx'
 
 export default function BriefingPanel() {
@@ -53,8 +53,11 @@ export default function BriefingPanel() {
                   : <Euro size={14} className="text-galenic-muted" />
               }
               <div>
-                <div className="text-xs font-mono text-galenic-muted uppercase tracking-wider">
+                <div className="flex items-center gap-1.5 text-xs font-mono text-galenic-muted uppercase tracking-wider">
                   Costo Target / Attuale
+                  {activeFormula.briefingLocked?.targetPrice && (
+                    <Lock size={9} className="text-galenic-muted/60" />
+                  )}
                 </div>
                 <div className={[
                   'text-sm font-semibold font-mono mt-0.5',

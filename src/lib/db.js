@@ -105,6 +105,17 @@ export async function dbSubmitBriefing(id, formData) {
   return true
 }
 
+export async function dbAcceptBriefingRequest(id, userId) {
+  if (!supabase || !userId) return false
+  const { error } = await supabase
+    .from('briefing_requests')
+    .update({ status: 'accepted' })
+    .eq('id', id)
+    .eq('user_id', userId)
+  if (error) console.error('dbAcceptBriefingRequest:', error.message)
+  return !error
+}
+
 export async function dbDeleteBriefingRequest(id, userId) {
   if (!supabase || !userId) return false
   const { error } = await supabase

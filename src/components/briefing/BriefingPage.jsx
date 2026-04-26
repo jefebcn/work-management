@@ -10,7 +10,7 @@ import { useAuth } from '../../context/AuthContext.jsx'
 import { encodeBriefing, decodeBriefing, validateBriefing } from '../../utils/briefingCodec.js'
 import {
   dbCreateBriefingRequest, dbLoadBriefingRequests,
-  dbDeleteBriefingRequest,
+  dbDeleteBriefingRequest, dbAcceptBriefingRequest,
 } from '../../lib/db.js'
 import { supabase } from '../../lib/supabase.js'
 import Button from '../ui/Button.jsx'
@@ -18,6 +18,9 @@ import Button from '../ui/Button.jsx'
 const FORM_TYPES = ['Compresse', 'Capsule', 'Polveri', 'Liquidi', 'Gel', 'Crema']
 const PACKAGING_OPTIONS = ['Blister', 'Flacone', 'Bustina', 'Sacchetto', 'Barattolo', 'Altro']
 const TEMPLATES_KEY = 'galenic_briefing_templates'
+
+// Use production URL if configured, otherwise current origin (preview deployments require Vercel auth)
+const SITE_URL = (import.meta.env.VITE_APP_URL || window.location.origin).replace(/\/$/, '')
 
 function loadTemplates() {
   try { return JSON.parse(localStorage.getItem(TEMPLATES_KEY) || '[]') } catch { return [] }
@@ -32,7 +35,7 @@ const EMPTY_FORM = {
 }
 
 export default function BriefingPage({ commercialMode = false }) {
-  const { macrothemes, importBriefing, setCurrentModule } = useApp()
+  const { macrothemes, importBriefing, setCurrentModule, decrementNewBriefingsCount } = useApp()
   const { user, cloudEnabled } = useAuth()
 
   const [formData, setFormData]     = useState(EMPTY_FORM)
@@ -74,24 +77,8 @@ export default function BriefingPage({ commercialMode = false }) {
       }, (payload) => {
         const row = payload.new
         if (row.status === 'completed' && row.form_data) {
-          // Update local list
+          // Update local list so "Accetta Briefing" button appears
           setRequests(prev => prev.map(r => r.id === row.id ? row : r))
-          // Auto-import the briefing into a new project
-          const d = row.form_data
-          const preset = row.preset || {}
-          importBriefing({
-            n:  d.name,
-            c:  d.clientName,
-            t:  d.type || preset.type || 'Compresse',
-            m:  preset.macrothemeId || '',
-            f:  d.format,
-            p:  d.packagingRequested,
-            tp: d.targetPrice,
-            b:  d.briefingNotes,
-            ts: d.submittedAt,
-          }, '')
-          setSuccessMsg(`Brief ricevuto da ${d.clientName || 'cliente'} — progetto "${d.name}" creato`)
-          setTimeout(() => setSuccessMsg(''), 6000)
         }
       })
       .subscribe()
@@ -203,7 +190,7 @@ export default function BriefingPage({ commercialMode = false }) {
   }
 
   async function handleCopyLink(id) {
-    const url = `${window.location.origin}/?brief=${id}`
+    const url = `${SITE_URL}/?brief=${id}`
     await navigator.clipboard.writeText(url)
     setCopiedLinkId(id)
     setTimeout(() => setCopiedLinkId(null), 2000)
@@ -213,6 +200,30 @@ export default function BriefingPage({ commercialMode = false }) {
     if (!user?.id) return
     await dbDeleteBriefingRequest(id, user.id)
     setRequests(prev => prev.filter(r => r.id !== id))
+  }
+
+  async function handleAcceptBriefing(req) {
+    const d = req.form_data || {}
+    const preset = req.preset || {}
+    importBriefing({
+      n:  d.name,
+      c:  d.clientName,
+      t:  d.type || preset.type || 'Compresse',
+      m:  preset.macrothemeId || '',
+      f:  d.format,
+      p:  d.packagingRequested,
+      tp: d.targetPrice,
+      b:  d.briefingNotes,
+      ts: d.submittedAt,
+    }, '')
+    await dbAcceptBriefingRequest(req.id, user.id)
+    setRequests(prev => prev.filter(r => r.id !== req.id))
+    decrementNewBriefingsCount()
+    setSuccessMsg(`Progetto "${d.name || 'senza nome'}" creato — apertura formulatore...`)
+    setTimeout(() => {
+      setSuccessMsg('')
+      setCurrentModule('formulator')
+    }, 1800)
   }
 
   const pendingReq   = requests.filter(r => r.status === 'pending')
@@ -271,7 +282,7 @@ export default function BriefingPage({ commercialMode = false }) {
             <div className="space-y-2">
               <div className="text-xs font-mono text-galenic-muted uppercase tracking-wider">In attesa ({pendingReq.length})</div>
               {pendingReq.map(req => {
-                const url = `${window.location.origin}/?brief=${req.id}`
+                const url = `${SITE_URL}/?brief=${req.id}`
                 const date = new Date(req.created_at).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' })
                 return (
                   <div key={req.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-galenic-elevated/50 border border-galenic-border/60">
@@ -307,26 +318,40 @@ export default function BriefingPage({ commercialMode = false }) {
             <div className="space-y-2 pt-3 border-t border-galenic-border/40">
               <div className="flex items-center gap-1.5 text-xs font-mono text-galenic-muted uppercase tracking-wider">
                 <Inbox size={11} />
-                Brief ricevuti
+                Brief ricevuti — da accettare
               </div>
               {completedReq.map(req => {
                 const d = req.form_data || {}
                 const date = new Date(req.updated_at).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' })
                 return (
-                  <div key={req.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-galenic-ok/5 border border-galenic-ok/20">
-                    <CheckCircle size={13} className="text-galenic-ok shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm text-galenic-primary truncate">{d.name || '—'}</div>
-                      <div className="text-xs font-mono text-galenic-muted/60 truncate">
-                        {d.clientName || 'Cliente non specificato'} · {date}
+                  <div key={req.id} className="flex flex-col gap-2 px-3 py-3 rounded-lg bg-galenic-ok/5 border border-galenic-ok/30">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle size={13} className="text-galenic-ok shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-galenic-primary truncate">{d.name || '—'}</div>
+                        <div className="text-xs font-mono text-galenic-muted/70 truncate mt-0.5">
+                          {d.clientName || 'Cliente non specificato'} · {date}
+                        </div>
+                        {d.type && (
+                          <div className="text-xs font-mono text-galenic-accent/80 mt-0.5">
+                            {d.type}{d.format ? ` · ${d.format}` : ''}{d.targetPrice ? ` · €${d.targetPrice}` : ''}
+                          </div>
+                        )}
                       </div>
+                      <button
+                        onClick={() => handleDeleteRequest(req.id)}
+                        className="shrink-0 p-1.5 rounded text-galenic-muted hover:text-galenic-danger hover:bg-galenic-danger/10 transition-colors"
+                        title="Ignora brief"
+                      >
+                        <Trash2 size={12} />
+                      </button>
                     </div>
                     <button
-                      onClick={() => handleDeleteRequest(req.id)}
-                      className="shrink-0 p-1.5 rounded text-galenic-muted hover:text-galenic-danger hover:bg-galenic-danger/10 transition-colors"
-                      title="Rimuovi dalla lista"
+                      onClick={() => handleAcceptBriefing(req)}
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-galenic-ok text-white text-xs font-semibold hover:opacity-90 transition-opacity"
                     >
-                      <Trash2 size={12} />
+                      <CheckCircle size={12} />
+                      Accetta Briefing — Crea Progetto v1.0
                     </button>
                   </div>
                 )

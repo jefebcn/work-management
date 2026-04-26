@@ -37,6 +37,7 @@ export default function Sidebar({ isOpen, onClose }) {
   const {
     currentModule, setCurrentModule,
     formulas, rawMaterials, packaging, importBackup, lastSaved,
+    newBriefingsCount,
   } = useApp()
   const fileInputRef = useRef(null)
   const [feedback, setFeedback] = useState(null)
@@ -123,6 +124,11 @@ export default function Sidebar({ isOpen, onClose }) {
                   isActive ? 'bg-galenic-accent/20 text-galenic-accent' : 'bg-galenic-elevated text-galenic-muted',
                 ].join(' ')}>
                   {formulas.length}
+                </span>
+              )}
+              {item.id === 'briefing' && newBriefingsCount > 0 && (
+                <span className="min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center px-1 shrink-0 animate-pulse">
+                  {newBriefingsCount}
                 </span>
               )}
             </button>

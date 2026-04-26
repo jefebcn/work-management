@@ -1,4 +1,5 @@
 import React from 'react'
+import { Lock } from 'lucide-react'
 import { useApp } from '../../context/AppContext.jsx'
 import Input from '../ui/Input.jsx'
 import Select from '../ui/Select.jsx'
@@ -38,13 +39,24 @@ export default function FormulaHeader() {
           />
         </div>
 
-        {/* Formula type */}
-        <Select
-          label="Tipo di Formula"
-          options={FORMULA_TYPES}
-          value={activeFormula.type}
-          onChange={e => setFormulaField('type', e.target.value)}
-        />
+        {/* Formula type — locked when coming from a commercial briefing */}
+        {activeFormula.briefingLocked?.type ? (
+          <div>
+            <div className="text-xs font-mono text-galenic-muted mb-1">Tipo di Formula</div>
+            <div className="flex items-center gap-2 px-3 py-2 bg-galenic-elevated/70 border border-galenic-border/60 rounded-lg">
+              <Lock size={11} className="text-galenic-muted/60 shrink-0" />
+              <span className="text-sm text-galenic-primary">{activeFormula.type}</span>
+              <span className="ml-auto text-xs font-mono text-galenic-muted/50">bloccato</span>
+            </div>
+          </div>
+        ) : (
+          <Select
+            label="Tipo di Formula"
+            options={FORMULA_TYPES}
+            value={activeFormula.type}
+            onChange={e => setFormulaField('type', e.target.value)}
+          />
+        )}
 
         {/* Target weight */}
         <div className="flex gap-2 items-end">

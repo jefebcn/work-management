@@ -158,6 +158,10 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
       packagingRequested: decoded.p  || '',
       briefingNotes:      decoded.b  || '',
       briefingCode:       rawCode,
+      briefingLocked: {
+        type:        !!decoded.t,
+        targetPrice: decoded.tp != null,
+      },
       selectedClaims: [],
       version:  1,
       parentId: null,
