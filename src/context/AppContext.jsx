@@ -3,19 +3,22 @@ import { useInventory } from '../hooks/useInventory.js'
 import { usePackaging } from '../hooks/usePackaging.js'
 import { useFormula } from '../hooks/useFormula.js'
 import { useMacrothemes } from '../hooks/useMacrothemes.js'
+import { useAuth } from './AuthContext.jsx'
 
 const AppContext = createContext(null)
 
 export function AppProvider({ children }) {
+  const { user } = useAuth()
   const [currentModule, setCurrentModule] = useState('dashboard')
 
-  const inventory       = useInventory()
-  const packagingStore  = usePackaging()
-  const macrothemeStore = useMacrothemes()
+  const inventory       = useInventory(user)
+  const packagingStore  = usePackaging(user)
+  const macrothemeStore = useMacrothemes(user)
   const formulaStore    = useFormula(
     inventory.rawMaterials,
     packagingStore.packaging,
     macrothemeStore.macrothemes,
+    user,
   )
 
   function importBackup({ rawMaterials, packaging, formulas }) {
@@ -46,6 +49,7 @@ export function AppProvider({ children }) {
     saveFormula:        formulaStore.saveFormula,
     deleteFormula:      formulaStore.deleteFormula,
     lastSaved:          formulaStore.lastSaved,
+    saving:             formulaStore.saving,
 
     // Active builder session
     activeFormula:           formulaStore.activeFormula,

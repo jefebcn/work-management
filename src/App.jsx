@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { FlaskConical } from 'lucide-react'
+import { FlaskConical, Loader2 } from 'lucide-react'
 import { AppProvider, useApp } from './context/AppContext.jsx'
+import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
 import Sidebar from './components/layout/Sidebar.jsx'
 import TopBar from './components/layout/TopBar.jsx'
@@ -11,13 +12,13 @@ import PackagingPage from './components/inventory/PackagingPage.jsx'
 import FormulatorPage from './components/formulator/FormulatorPage.jsx'
 import BriefingPage from './components/briefing/BriefingPage.jsx'
 import CommandBar from './components/ui/CommandBar.jsx'
+import LoginPage from './components/auth/LoginPage.jsx'
 
 function AppShell() {
   const { currentModule } = useApp()
-  const [sidebarOpen, setSidebarOpen]     = useState(false)
-  const [commandOpen, setCommandOpen]     = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [commandOpen, setCommandOpen] = useState(false)
 
-  // Global Cmd+K / Ctrl+K listener
   useEffect(() => {
     function onKeyDown(e) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -31,21 +32,21 @@ function AppShell() {
 
   return (
     <div className="min-h-screen bg-galenic-base flex">
-
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-60 z-20 md:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
-
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-
       <div className="flex-1 flex flex-col md:ml-56 min-h-screen min-w-0">
-        <TopBar onMenuClick={() => setSidebarOpen(prev => !prev)} onCommandOpen={() => setCommandOpen(true)} />
+        <TopBar
+          onMenuClick={() => setSidebarOpen(prev => !prev)}
+          onCommandOpen={() => setCommandOpen(true)}
+        />
         <PageWrapper>
-          {currentModule === 'dashboard' && <DashboardPage />}
-          {currentModule === 'inventory' && (
+          {currentModule === 'dashboard'  && <DashboardPage />}
+          {currentModule === 'inventory'  && (
             <div className="space-y-8">
               <RawMaterialsPage />
               <PackagingPage />
@@ -55,7 +56,6 @@ function AppShell() {
           {currentModule === 'briefing'   && <BriefingPage />}
         </PageWrapper>
       </div>
-
       <CommandBar open={commandOpen} onClose={() => setCommandOpen(false)} />
     </div>
   )
@@ -81,14 +81,51 @@ function CommercialShell() {
   )
 }
 
+// Auth gate — shows login page or app based on cloud auth state
+function AuthGate() {
+  const { user, loading, cloudEnabled } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-galenic-base flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 bg-galenic-accent/10 border border-galenic-accent/30 rounded-xl flex items-center justify-center">
+            <FlaskConical size={18} className="text-galenic-accent" />
+          </div>
+          <Loader2 size={16} className="text-galenic-muted animate-spin" />
+        </div>
+      </div>
+    )
+  }
+
+  // If cloud is not configured — run without auth (dev/local mode)
+  if (!cloudEnabled || user) {
+    return (
+      <AppProvider>
+        <AppShell />
+      </AppProvider>
+    )
+  }
+
+  return <LoginPage />
+}
+
 const COMMERCIAL_MODE = new URLSearchParams(window.location.search).get('mode') === 'commercial'
 
 export default function App() {
+  if (COMMERCIAL_MODE) {
+    return (
+      <ThemeProvider>
+        <CommercialShell />
+      </ThemeProvider>
+    )
+  }
+
   return (
     <ThemeProvider>
-      <AppProvider>
-        {COMMERCIAL_MODE ? <CommercialShell /> : <AppShell />}
-      </AppProvider>
+      <AuthProvider>
+        <AuthGate />
+      </AuthProvider>
     </ThemeProvider>
   )
 }

@@ -6,21 +6,44 @@ import { computeFormulaResults } from '../utils/formulaCalculations.js'
 import { toMg } from '../utils/weightConversions.js'
 import { migrateAllFormulas, nextVersionLabel } from '../utils/formulaMigration.js'
 import { suggestMacrothemeId } from '../utils/macrothemeAutoSuggest.js'
+import { dbLoadAll, dbUpsert, dbDelete, dbUpsertMany } from '../lib/db.js'
 
-export function useFormula(rawMaterials, packaging, macrothemes = []) {
+export function useFormula(rawMaterials, packaging, macrothemes = [], user = null) {
   const [formulas, setFormulas] = useState(() =>
     loadFromStorage(STORAGE_KEYS.FORMULAS, []),
   )
   const [activeFormula, setActiveFormula] = useState(null)
   const [lastSaved,     setLastSaved]     = useState(null)
+  const [saving,        setSaving]        = useState(false)
   const migratedRef = useRef(false)
 
-  // One-shot migrazione al primo render quando macrothemes sono caricati
+  // One-shot migration at first render when macrothemes are loaded
   useEffect(() => {
     if (migratedRef.current || !macrothemes.length) return
     setFormulas(prev => migrateAllFormulas(prev, macrothemes))
     migratedRef.current = true
   }, [macrothemes])
+
+  // On login: load formulas from cloud
+  useEffect(() => {
+    if (!user) return
+    dbLoadAll('formulas', user.id).then(rows => {
+      if (rows === null) return
+      if (rows.length > 0) {
+        const migrated = migrateAllFormulas(rows, macrothemes)
+        setFormulas(migrated)
+        saveToStorage(STORAGE_KEYS.FORMULAS, migrated)
+      } else {
+        // First login — push any existing local formulas up
+        const local = loadFromStorage(STORAGE_KEYS.FORMULAS, [])
+        if (local.length > 0) {
+          const migrated = migrateAllFormulas(local, macrothemes)
+          setFormulas(migrated)
+          dbUpsertMany('formulas', user.id, migrated)
+        }
+      }
+    })
+  }, [user?.id])
 
   // Persist to localStorage and track last-saved timestamp
   useEffect(() => {
@@ -36,7 +59,7 @@ export function useFormula(rawMaterials, packaging, macrothemes = []) {
 
   // ── Formula list management ────────────────────────────────────────────────
 
-  function saveFormula(formula) {
+  async function saveFormula(formula) {
     const saved = { ...formula, updatedAt: new Date().toISOString() }
     setFormulas(prev => {
       const exists = prev.find(f => f.id === saved.id)
@@ -44,16 +67,24 @@ export function useFormula(rawMaterials, packaging, macrothemes = []) {
         ? prev.map(f => f.id === saved.id ? saved : f)
         : [...prev, saved]
     })
+    if (user) {
+      setSaving(true)
+      await dbUpsert('formulas', user.id, saved)
+      setSaving(false)
+    }
+    setLastSaved(new Date())
   }
 
   function deleteFormula(id) {
     setFormulas(prev => prev.filter(f => f.id !== id))
     if (activeFormula?.id === id) setActiveFormula(null)
+    if (user) dbDelete('formulas', user.id, id)
   }
 
   function replaceFormulas(data) {
     setFormulas(data)
     setActiveFormula(null)
+    if (user) dbUpsertMany('formulas', user.id, data)
   }
 
   // ── Active formula session ─────────────────────────────────────────────────
@@ -78,22 +109,17 @@ export function useFormula(rawMaterials, packaging, macrothemes = []) {
       status: 'draft',
       batchSize: 1000,
       markupPercent: 0,
-      // Sistema versioni esteso
       productGroupId: id,
       versionLabel:   'v1.0',
       versionNote:    '',
-      // Auto-categorizzazione macrotheme
       macrothemeId:   opts.macrothemeId || suggestMacrothemeId(initialType, macrothemes),
-      // Briefing commerciale (opzionali)
       clientName:         opts.clientName         || '',
       targetPrice:        opts.targetPrice         ?? null,
       format:             opts.format             || '',
       packagingRequested: opts.packagingRequested || '',
       briefingNotes:      opts.briefingNotes      || '',
       briefingCode:       opts.briefingCode       || '',
-      // Label claims selezione
       selectedClaims: [],
-      // Back-compat
       version:  1,
       parentId: null,
       createdAt: now,
@@ -101,12 +127,6 @@ export function useFormula(rawMaterials, packaging, macrothemes = []) {
     })
   }
 
-  /**
-   * Crea una nuova formula dai dati decodificati di un briefing commerciale,
-   * la salva nell'archivio e la apre nel builder.
-   * @param {object} decoded - payload da decodeBriefing()
-   * @param {string} rawCode - codice sorgente originale (per tracciabilità)
-   */
   function importBriefing(decoded, rawCode = '') {
     const now = new Date().toISOString()
     const id  = generateId('frm')
@@ -132,14 +152,13 @@ export function useFormula(rawMaterials, packaging, macrothemes = []) {
       versionLabel:    'v1.0',
       versionNote:     '',
       macrothemeId,
-      // Briefing data
       clientName:         decoded.c  || '',
       targetPrice:        decoded.tp ?? null,
       format:             decoded.f  || '',
       packagingRequested: decoded.p  || '',
       briefingNotes:      decoded.b  || '',
       briefingCode:       rawCode,
-      // Back-compat
+      selectedClaims: [],
       version:  1,
       parentId: null,
       createdAt: now,
@@ -147,19 +166,19 @@ export function useFormula(rawMaterials, packaging, macrothemes = []) {
     }
     setFormulas(prev => [...prev, formula])
     setActiveFormula(formula)
+    if (user) dbUpsert('formulas', user.id, formula)
     return formula
   }
 
-  /** Cambia il macrotheme di una formula salvata */
   function setMacrothemeForFormula(formulaId, macrothemeId) {
     setFormulas(prev =>
-      prev.map(f =>
-        f.id === formulaId
-          ? { ...f, macrothemeId, updatedAt: new Date().toISOString() }
-          : f,
-      ),
+      prev.map(f => {
+        if (f.id !== formulaId) return f
+        const updated = { ...f, macrothemeId, updatedAt: new Date().toISOString() }
+        if (user) dbUpsert('formulas', user.id, updated)
+        return updated
+      }),
     )
-    // Aggiorna anche la sessione attiva se è la formula corrente
     setActiveFormula(prev =>
       prev?.id === formulaId ? { ...prev, macrothemeId } : prev,
     )
@@ -262,20 +281,14 @@ export function useFormula(rawMaterials, packaging, macrothemes = []) {
     })
   }
 
-  /**
-   * Crea uno snapshot (nuova versione) della formula attiva.
-   * @param {string} note - Nota descrittiva opzionale (es. "+10% Caffeina")
-   */
   function createSnapshot(note = '') {
     if (!activeFormula) return null
     saveFormula(activeFormula)
 
-    // Family-id: gruppo prodotto unifica tutte le versioni
     const familyId = activeFormula.productGroupId
                   || activeFormula.parentId
                   || activeFormula.id
 
-    // Trova la versione più alta nella famiglia per generare la prossima label
     const allVersions = [...formulas, activeFormula]
       .filter(f =>
         f.id === familyId ||
@@ -283,7 +296,6 @@ export function useFormula(rawMaterials, packaging, macrothemes = []) {
         f.productGroupId === familyId,
       )
 
-    // Determina la prossima version label (es. v1.2 → v1.3)
     const maxLabel = allVersions
       .map(f => f.versionLabel)
       .filter(Boolean)
@@ -308,6 +320,7 @@ export function useFormula(rawMaterials, packaging, macrothemes = []) {
     }
     setFormulas(prev => [...prev, snapshot])
     setActiveFormula(snapshot)
+    if (user) dbUpsert('formulas', user.id, snapshot)
     return snapshot
   }
 
@@ -356,6 +369,7 @@ export function useFormula(rawMaterials, packaging, macrothemes = []) {
     deleteFormula,
     replaceFormulas,
     lastSaved,
+    saving,
 
     activeFormula,
     computed,
