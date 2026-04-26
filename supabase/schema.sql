@@ -176,3 +176,25 @@ CREATE POLICY "anon_submit_briefing"
   TO anon
   USING (status = 'pending')
   WITH CHECK (status = 'completed');
+
+-- ── RPC: submit_briefing (bypasses RLS via SECURITY DEFINER) ──────
+-- Used by the public form. Updates a pending briefing to 'completed'.
+-- Returns true if a row was updated, false otherwise.
+
+CREATE OR REPLACE FUNCTION submit_briefing(brief_id text, form jsonb)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  UPDATE briefing_requests
+  SET status     = 'completed',
+      form_data  = form,
+      updated_at = NOW()
+  WHERE id = brief_id AND status = 'pending';
+  RETURN FOUND;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION submit_briefing(text, jsonb) TO anon;

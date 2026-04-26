@@ -96,13 +96,13 @@ export async function dbGetBriefingById(id) {
 
 export async function dbSubmitBriefing(id, formData) {
   if (!supabase) return false
-  const { error } = await supabase
-    .from('briefing_requests')
-    .update({ status: 'completed', form_data: formData, updated_at: new Date().toISOString() })
-    .eq('id', id)
-    .eq('status', 'pending')
+  // Uses RPC with SECURITY DEFINER to bypass RLS for this anon operation
+  const { data, error } = await supabase.rpc('submit_briefing', {
+    brief_id: id,
+    form: formData,
+  })
   if (error) { console.error('dbSubmitBriefing:', error.message); return false }
-  return true
+  return data === true
 }
 
 export async function dbAcceptBriefingRequest(id, userId) {
