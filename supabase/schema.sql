@@ -174,4 +174,5 @@ CREATE POLICY "anon_read_pending_briefing"
 CREATE POLICY "anon_submit_briefing"
   ON briefing_requests FOR UPDATE
   TO anon
-  USING (status = 'pending');
+  USING (status = 'pending')
+  WITH CHECK (status = 'completed');
