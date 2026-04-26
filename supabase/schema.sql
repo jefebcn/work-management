@@ -138,3 +138,40 @@ CREATE TRIGGER formulas_updated_at
 CREATE TRIGGER macrothemes_updated_at
   BEFORE UPDATE ON macrothemes
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- ── briefing_requests (added v3) ─────────────────────────────────
+-- Token-based shareable links: lab creates → commercial fills → project auto-created
+
+CREATE TABLE IF NOT EXISTS briefing_requests (
+  id          TEXT        PRIMARY KEY,
+  user_id     UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  status      TEXT        NOT NULL DEFAULT 'pending',  -- 'pending' | 'completed'
+  preset      JSONB       NOT NULL DEFAULT '{}',
+  form_data   JSONB,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS briefing_requests_user_idx   ON briefing_requests(user_id);
+CREATE INDEX IF NOT EXISTS briefing_requests_status_idx ON briefing_requests(status);
+
+CREATE TRIGGER briefing_requests_updated_at
+  BEFORE UPDATE ON briefing_requests
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+ALTER TABLE briefing_requests ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "owner_briefing_requests"
+  ON briefing_requests FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "anon_read_pending_briefing"
+  ON briefing_requests FOR SELECT
+  TO anon
+  USING (status = 'pending');
+
+CREATE POLICY "anon_submit_briefing"
+  ON briefing_requests FOR UPDATE
+  TO anon
+  USING (status = 'pending');

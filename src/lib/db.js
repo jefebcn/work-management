@@ -58,3 +58,60 @@ export async function dbDelete(table, userId, id) {
   if (error) console.error(`dbDelete(${table}):`, error.message)
   return !error
 }
+
+// ── Briefing Requests ────────────────────────────────────────────
+
+export async function dbCreateBriefingRequest(userId, id, preset = {}) {
+  if (!supabase || !userId) return false
+  const { error } = await supabase.from('briefing_requests').insert({
+    id, user_id: userId, status: 'pending', preset,
+    created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+  })
+  if (error) console.error('dbCreateBriefingRequest:', error.message)
+  return !error
+}
+
+export async function dbLoadBriefingRequests(userId) {
+  if (!supabase || !userId) return []
+  const { data, error } = await supabase
+    .from('briefing_requests')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+  if (error) { console.error('dbLoadBriefingRequests:', error.message); return [] }
+  return data || []
+}
+
+export async function dbGetBriefingById(id) {
+  if (!supabase) return null
+  const { data, error } = await supabase
+    .from('briefing_requests')
+    .select('*')
+    .eq('id', id)
+    .eq('status', 'pending')
+    .single()
+  if (error) return null
+  return data
+}
+
+export async function dbSubmitBriefing(id, formData) {
+  if (!supabase) return false
+  const { error } = await supabase
+    .from('briefing_requests')
+    .update({ status: 'completed', form_data: formData, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('status', 'pending')
+  if (error) { console.error('dbSubmitBriefing:', error.message); return false }
+  return true
+}
+
+export async function dbDeleteBriefingRequest(id, userId) {
+  if (!supabase || !userId) return false
+  const { error } = await supabase
+    .from('briefing_requests')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', userId)
+  if (error) console.error('dbDeleteBriefingRequest:', error.message)
+  return !error
+}

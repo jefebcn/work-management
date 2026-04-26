@@ -3,9 +3,16 @@ import { QRCodeSVG } from 'qrcode.react'
 import {
   ClipboardList, CheckCircle, Copy, QrCode, Save, Trash2,
   AlertTriangle, ChevronDown, ChevronUp, FlaskConical,
+  Send, Link2, Inbox, Loader2,
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext.jsx'
+import { useAuth } from '../../context/AuthContext.jsx'
 import { encodeBriefing, decodeBriefing, validateBriefing } from '../../utils/briefingCodec.js'
+import {
+  dbCreateBriefingRequest, dbLoadBriefingRequests,
+  dbDeleteBriefingRequest,
+} from '../../lib/db.js'
+import { supabase } from '../../lib/supabase.js'
 import Button from '../ui/Button.jsx'
 
 const FORM_TYPES = ['Compresse', 'Capsule', 'Polveri', 'Liquidi', 'Gel', 'Crema']
@@ -26,6 +33,7 @@ const EMPTY_FORM = {
 
 export default function BriefingPage({ commercialMode = false }) {
   const { macrothemes, importBriefing, setCurrentModule } = useApp()
+  const { user, cloudEnabled } = useAuth()
 
   const [formData, setFormData]     = useState(EMPTY_FORM)
   const [code, setCode]             = useState('')
@@ -38,14 +46,65 @@ export default function BriefingPage({ commercialMode = false }) {
   const [savingTpl, setSavingTpl]         = useState(false)
   const [successMsg, setSuccessMsg]       = useState('')
 
+  // ── Shareable links state ───────────────────────────────────────
+  const [requests, setRequests]       = useState([])
+  const [generating, setGenerating]   = useState(false)
+  const [copiedLinkId, setCopiedLinkId] = useState(null)
+
   // Re-load templates from localStorage when section opens
   useEffect(() => {
     if (showTemplates) setTemplates(loadTemplates())
   }, [showTemplates])
 
+  // Load briefing requests + subscribe to Realtime updates
+  useEffect(() => {
+    if (!user?.id || !cloudEnabled) return
+    let cancelled = false
+    dbLoadBriefingRequests(user.id).then(rows => {
+      if (!cancelled) setRequests(rows)
+    })
+
+    const channel = supabase
+      .channel(`briefing_${user.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'briefing_requests',
+        filter: `user_id=eq.${user.id}`,
+      }, (payload) => {
+        const row = payload.new
+        if (row.status === 'completed' && row.form_data) {
+          // Update local list
+          setRequests(prev => prev.map(r => r.id === row.id ? row : r))
+          // Auto-import the briefing into a new project
+          const d = row.form_data
+          const preset = row.preset || {}
+          importBriefing({
+            n:  d.name,
+            c:  d.clientName,
+            t:  d.type || preset.type || 'Compresse',
+            m:  preset.macrothemeId || '',
+            f:  d.format,
+            p:  d.packagingRequested,
+            tp: d.targetPrice,
+            b:  d.briefingNotes,
+            ts: d.submittedAt,
+          }, '')
+          setSuccessMsg(`Brief ricevuto da ${d.clientName || 'cliente'} — progetto "${d.name}" creato`)
+          setTimeout(() => setSuccessMsg(''), 6000)
+        }
+      })
+      .subscribe()
+
+    return () => {
+      cancelled = true
+      supabase.removeChannel(channel)
+    }
+  }, [user?.id, cloudEnabled, importBriefing])
+
   function set(field, value) {
     setFormData(prev => ({ ...prev, [field]: value }))
-    setCode('')   // reset code when form changes
+    setCode('')
     setErrors([])
   }
 
@@ -118,24 +177,175 @@ export default function BriefingPage({ commercialMode = false }) {
     setTemplates(updated)
   }
 
+  // ── Shareable link actions ──────────────────────────────────────
+
+  async function handleGenerateLink() {
+    if (!user?.id || generating) return
+    setGenerating(true)
+    const id = crypto.randomUUID()
+    const preset = {
+      macrothemeId:       formData.macrothemeId || null,
+      type:               formData.type || null,
+      format:             formData.format.trim() || null,
+      packagingRequested: formData.packagingRequested || null,
+    }
+    const ok = await dbCreateBriefingRequest(user.id, id, preset)
+    if (ok) {
+      const row = {
+        id, user_id: user.id, status: 'pending',
+        preset, form_data: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+      setRequests(prev => [row, ...prev])
+    }
+    setGenerating(false)
+  }
+
+  async function handleCopyLink(id) {
+    const url = `${window.location.origin}/?brief=${id}`
+    await navigator.clipboard.writeText(url)
+    setCopiedLinkId(id)
+    setTimeout(() => setCopiedLinkId(null), 2000)
+  }
+
+  async function handleDeleteRequest(id) {
+    if (!user?.id) return
+    await dbDeleteBriefingRequest(id, user.id)
+    setRequests(prev => prev.filter(r => r.id !== id))
+  }
+
+  const pendingReq   = requests.filter(r => r.status === 'pending')
+  const completedReq = requests.filter(r => r.status === 'completed').slice(0, 5)
+
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      {/* Page header */}
       <div>
         <div className="flex items-center gap-2 mb-1">
           <ClipboardList size={18} className="text-galenic-accent" />
           <h1 className="text-xl font-semibold text-galenic-primary">Briefing Commerciale</h1>
         </div>
         <p className="text-xs font-mono text-galenic-muted">
-          Compila i requisiti del progetto e genera un codice da inviare al laboratorio.
+          Invia un link al commerciale: una volta compilato, il progetto verrà creato automaticamente qui.
         </p>
       </div>
 
-      {/* Success message */}
       {successMsg && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-galenic-ok/10 border border-galenic-ok/30 text-galenic-ok text-sm font-mono">
           <CheckCircle size={14} />
           {successMsg}
+        </div>
+      )}
+
+      {/* ── INVIA A COMMERCIALE — link sharing ────────────────── */}
+      {!commercialMode && cloudEnabled && (
+        <div className="bg-galenic-surface border border-galenic-accent/40 rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Send size={14} className="text-galenic-accent" />
+              <h2 className="text-xs font-mono font-semibold text-galenic-primary uppercase tracking-widest">
+                Invia a Commerciale
+              </h2>
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleGenerateLink}
+              disabled={generating || !user}
+            >
+              {generating ? <Loader2 size={13} className="mr-1.5 animate-spin" /> : <Link2 size={13} className="mr-1.5" />}
+              Genera Link
+            </Button>
+          </div>
+          <p className="text-xs font-mono text-galenic-muted/70 leading-relaxed">
+            Ogni link è privato e si auto-distrugge dopo l'invio. Il commerciale apre l'URL,
+            compila il form, e il progetto appare qui automaticamente.
+            <br />
+            <span className="text-galenic-muted/50">
+              (Suggerimento: prima di "Genera Link", puoi pre-impostare Macrotema e Forma nel form sotto — verranno applicati al progetto creato.)
+            </span>
+          </p>
+
+          {/* Pending links */}
+          {pendingReq.length > 0 && (
+            <div className="space-y-2">
+              <div className="text-xs font-mono text-galenic-muted uppercase tracking-wider">In attesa ({pendingReq.length})</div>
+              {pendingReq.map(req => {
+                const url = `${window.location.origin}/?brief=${req.id}`
+                const date = new Date(req.created_at).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' })
+                return (
+                  <div key={req.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-galenic-elevated/50 border border-galenic-border/60">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-mono text-xs text-galenic-accent truncate">{url}</div>
+                      <div className="text-xs font-mono text-galenic-muted/50 mt-0.5">creato il {date}</div>
+                    </div>
+                    <button
+                      onClick={() => handleCopyLink(req.id)}
+                      className={`shrink-0 px-2.5 py-1 rounded-md text-xs font-mono transition-colors ${
+                        copiedLinkId === req.id
+                          ? 'bg-galenic-ok/15 text-galenic-ok border border-galenic-ok/30'
+                          : 'bg-galenic-accent/10 text-galenic-accent hover:bg-galenic-accent/20 border border-galenic-accent/30'
+                      }`}
+                    >
+                      {copiedLinkId === req.id ? <><CheckCircle size={11} className="inline mr-1" />Copiato</> : <><Copy size={11} className="inline mr-1" />Copia</>}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteRequest(req.id)}
+                      className="shrink-0 p-1.5 rounded text-galenic-muted hover:text-galenic-danger hover:bg-galenic-danger/10 transition-colors"
+                      title="Elimina link"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Completed feed */}
+          {completedReq.length > 0 && (
+            <div className="space-y-2 pt-3 border-t border-galenic-border/40">
+              <div className="flex items-center gap-1.5 text-xs font-mono text-galenic-muted uppercase tracking-wider">
+                <Inbox size={11} />
+                Brief ricevuti
+              </div>
+              {completedReq.map(req => {
+                const d = req.form_data || {}
+                const date = new Date(req.updated_at).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' })
+                return (
+                  <div key={req.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-galenic-ok/5 border border-galenic-ok/20">
+                    <CheckCircle size={13} className="text-galenic-ok shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-galenic-primary truncate">{d.name || '—'}</div>
+                      <div className="text-xs font-mono text-galenic-muted/60 truncate">
+                        {d.clientName || 'Cliente non specificato'} · {date}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteRequest(req.id)}
+                      className="shrink-0 p-1.5 rounded text-galenic-muted hover:text-galenic-danger hover:bg-galenic-danger/10 transition-colors"
+                      title="Rimuovi dalla lista"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {pendingReq.length === 0 && completedReq.length === 0 && (
+            <div className="text-xs font-mono text-galenic-muted/50 text-center py-3">
+              Nessun link generato. Clicca "Genera Link" per iniziare.
+            </div>
+          )}
+        </div>
+      )}
+
+      {!cloudEnabled && !commercialMode && (
+        <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-galenic-warning/10 border border-galenic-warning/30 text-galenic-warning text-xs font-mono">
+          <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+          <span>I link condivisibili richiedono il cloud Supabase. Aggiungi le variabili d'ambiente per attivarli.</span>
         </div>
       )}
 
@@ -257,7 +467,6 @@ export default function BriefingPage({ commercialMode = false }) {
             </Field>
           </div>
 
-          {/* Validation errors */}
           {errors.length > 0 && (
             <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-galenic-danger/10 border border-galenic-danger/30 text-galenic-danger text-xs font-mono">
               <AlertTriangle size={13} className="mt-0.5 shrink-0" />
@@ -267,16 +476,14 @@ export default function BriefingPage({ commercialMode = false }) {
             </div>
           )}
 
-          {/* Generate button */}
           <Button variant="primary" size="sm" onClick={handleGenerate} className="w-full justify-center">
             <ClipboardList size={14} className="mr-1.5" />
-            Genera Codice Briefing
+            Genera Codice Briefing (manuale)
           </Button>
         </div>
 
-        {/* ── RIGHT: Code + QR output ── */}
+        {/* ── RIGHT: Code + QR output (legacy manual flow) ── */}
         <div className="space-y-4">
-          {/* Code output */}
           <div className="bg-galenic-surface border border-galenic-border rounded-xl p-5 space-y-4 min-h-[200px] flex flex-col">
             <h2 className="text-xs font-mono font-semibold text-galenic-primary uppercase tracking-widest">
               Codice Briefing
@@ -339,7 +546,6 @@ export default function BriefingPage({ commercialMode = false }) {
             )}
           </div>
 
-          {/* Templates */}
           <div className="bg-galenic-surface border border-galenic-border rounded-xl overflow-hidden">
             <button
               onClick={() => setShowTemplates(v => !v)}
@@ -361,7 +567,6 @@ export default function BriefingPage({ commercialMode = false }) {
 
             {showTemplates && (
               <div className="border-t border-galenic-border px-5 py-4 space-y-3">
-                {/* Save current form as template */}
                 {savingTpl ? (
                   <div className="flex gap-2">
                     <input

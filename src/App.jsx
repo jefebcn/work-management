@@ -11,6 +11,7 @@ import RawMaterialsPage from './components/inventory/RawMaterialsPage.jsx'
 import PackagingPage from './components/inventory/PackagingPage.jsx'
 import FormulatorPage from './components/formulator/FormulatorPage.jsx'
 import BriefingPage from './components/briefing/BriefingPage.jsx'
+import PublicBriefingForm from './components/briefing/PublicBriefingForm.jsx'
 import CommandBar from './components/ui/CommandBar.jsx'
 import LoginPage from './components/auth/LoginPage.jsx'
 
@@ -111,8 +112,18 @@ function AuthGate() {
 }
 
 const COMMERCIAL_MODE = new URLSearchParams(window.location.search).get('mode') === 'commercial'
+const BRIEF_TOKEN     = new URLSearchParams(window.location.search).get('brief')
 
 export default function App() {
+  // Public briefing form — no auth required
+  if (BRIEF_TOKEN) {
+    return (
+      <ThemeProvider>
+        <PublicBriefingForm token={BRIEF_TOKEN} />
+      </ThemeProvider>
+    )
+  }
+
   if (COMMERCIAL_MODE) {
     return (
       <ThemeProvider>
