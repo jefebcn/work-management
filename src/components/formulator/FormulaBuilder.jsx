@@ -1,4 +1,4 @@
-import React, { useState, Suspense, lazy } from 'react'
+import React, { useState, useEffect, Suspense, lazy } from 'react'
 import { AlertTriangle, Download, Save, CheckCircle, Printer, GitBranch, Scale, Euro, Beaker, Plus, Layers } from 'lucide-react'
 import { useApp } from '../../context/AppContext.jsx'
 import FormulaHeader from './FormulaHeader.jsx'
@@ -66,9 +66,16 @@ export default function FormulaBuilder() {
   } = useApp()
   const [showExport, setShowExport]             = useState(false)
   const [showVersionModal, setShowVersionModal] = useState(false)
-  const [activeTab, setActiveTab]               = useState('balance')
+  const [activeTab, setActiveTab]               = useState(
+    () => activeFormula?.type === 'Caramelle' ? 'coating' : 'balance',
+  )
   const [unitMode, setUnitMode]                 = useState('dose') // 'dose' | 'die'
   const [drawerOpen, setDrawerOpen]             = useState(false)
+
+  // Reset to the most relevant tab when a different formula is opened
+  useEffect(() => {
+    setActiveTab(activeFormula?.type === 'Caramelle' ? 'coating' : 'balance')
+  }, [activeFormula?.id])
 
   if (!activeFormula) return null
 

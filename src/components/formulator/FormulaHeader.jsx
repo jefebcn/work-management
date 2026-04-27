@@ -11,6 +11,7 @@ const FORMULA_TYPES = [
   { value: 'Capsule',   label: 'Capsule' },
   { value: 'Polveri',   label: 'Polveri' },
   { value: 'Liquidi',   label: 'Liquidi' },
+  { value: 'Caramelle', label: 'Caramelle' },
 ]
 
 const WEIGHT_UNITS = [

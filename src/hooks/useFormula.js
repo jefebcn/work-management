@@ -121,7 +121,9 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
       briefingNotes:      opts.briefingNotes      || '',
       briefingCode:       opts.briefingCode       || '',
       selectedClaims: [],
-      softCoating:    null,
+      softCoating:    initialType === 'Caramelle'
+        ? { ...DEFAULT_SOFT_COATING, enabled: true }
+        : null,
       version:  1,
       parentId: null,
       createdAt: now,

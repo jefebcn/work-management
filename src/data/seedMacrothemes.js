@@ -1,7 +1,7 @@
 /**
  * Macrotemi auto-creati alla prima apertura.
  * Sono "auto" perché legati alla forma farmaceutica.
- * Non eliminabili — rappresentano le 4 categorie base.
+ * Non eliminabili — rappresentano le 5 categorie base.
  */
 export const SEED_MACROTHEMES = [
   {
@@ -34,6 +34,14 @@ export const SEED_MACROTHEMES = [
     kind: 'auto',
     formType: 'Liquidi',
     icon: 'Droplet',
+    createdAt: '2024-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'macro-auto-caramelle',
+    name: 'Caramelle',
+    kind: 'auto',
+    formType: 'Caramelle',
+    icon: 'Candy',
     createdAt: '2024-01-01T00:00:00.000Z',
   },
 ]
