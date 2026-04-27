@@ -1,5 +1,5 @@
 import React, { useState, Suspense, lazy } from 'react'
-import { AlertTriangle, Download, Save, CheckCircle, Printer, GitBranch, Scale, Euro, Beaker, Plus } from 'lucide-react'
+import { AlertTriangle, Download, Save, CheckCircle, Printer, GitBranch, Scale, Euro, Beaker, Plus, Layers } from 'lucide-react'
 import { useApp } from '../../context/AppContext.jsx'
 import FormulaHeader from './FormulaHeader.jsx'
 import IngredientRow from './IngredientRow.jsx'
@@ -17,14 +17,16 @@ import VersionNoteModal from './VersionNoteModal.jsx'
 import StatusBadge from '../ui/StatusBadge.jsx'
 import BriefingPanel from './BriefingPanel.jsx'
 import LabelPanel from './LabelPanel.jsx'
+import SoftCoatingPanel from './SoftCoatingPanel.jsx'
 import { openLabReportWindow } from '../../utils/pdfReport.js'
 
 const CompositionChart = lazy(() => import('./CompositionChart.jsx'))
 
 const TABS = [
-  { id: 'balance', label: 'Composizione',       icon: <Scale size={13} /> },
-  { id: 'costs',   label: 'Analisi Economica',  icon: <Euro size={13} /> },
-  { id: 'label',   label: 'Claims & Etichetta', icon: <Beaker size={13} /> },
+  { id: 'balance',  label: 'Composizione',       icon: <Scale size={13} /> },
+  { id: 'costs',    label: 'Analisi Economica',  icon: <Euro size={13} /> },
+  { id: 'label',    label: 'Claims & Etichetta', icon: <Beaker size={13} /> },
+  { id: 'coating',  label: 'Soft Coating',       icon: <Layers size={13} /> },
 ]
 
 // Vertical fill bar — rises as formula fills, pulses red when over target weight
@@ -304,6 +306,13 @@ export default function FormulaBuilder() {
         <div key="label" className="space-y-4 tab-fade-in">
           <NRVSummaryPanel />
           <LabelPanel />
+        </div>
+      )}
+
+      {/* ── Tab 4: Soft Coating ── */}
+      {activeTab === 'coating' && (
+        <div key="coating" className="space-y-4 tab-fade-in">
+          <SoftCoatingPanel />
         </div>
       )}
 

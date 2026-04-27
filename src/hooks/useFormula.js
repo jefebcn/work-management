@@ -7,6 +7,7 @@ import { toMg } from '../utils/weightConversions.js'
 import { migrateAllFormulas, nextVersionLabel } from '../utils/formulaMigration.js'
 import { suggestMacrothemeId } from '../utils/macrothemeAutoSuggest.js'
 import { dbLoadAll, dbUpsert, dbDelete, dbUpsertMany } from '../lib/db.js'
+import { DEFAULT_SOFT_COATING, SYRUP_TEMPLATES } from '../utils/softCoatingCalculations.js'
 
 export function useFormula(rawMaterials, packaging, macrothemes = [], user = null) {
   const [formulas, setFormulas] = useState(() =>
@@ -120,6 +121,7 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
       briefingNotes:      opts.briefingNotes      || '',
       briefingCode:       opts.briefingCode       || '',
       selectedClaims: [],
+      softCoating:    null,
       version:  1,
       parentId: null,
       createdAt: now,
@@ -404,6 +406,67 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
     })
   }
 
+  // ── Soft Coating management ────────────────────────────────────────────────
+
+  function updateSoftCoating(fields) {
+    setActiveFormula(prev => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        softCoating: { ...(prev.softCoating || DEFAULT_SOFT_COATING), ...fields },
+      }
+    })
+  }
+
+  function addCoatingLayer(type = 'coating') {
+    setActiveFormula(prev => {
+      if (!prev) return prev
+      const sc     = prev.softCoating || DEFAULT_SOFT_COATING
+      const layers = sc.layers || []
+      const count  = layers.filter(l => l.type === type).length + 1
+      const tmpl   = SYRUP_TEMPLATES.maltitolo_gomma
+      const newLayer = {
+        id:   generateId('layer'),
+        name: type === 'finishing' ? 'Finishing' : `Coating ${count}`,
+        type,
+        syrupTemplate:             'maltitolo_gomma',
+        targetWeightGainPct:       type === 'finishing' ? 5 : 10,
+        processLossOverdosagePct:  7.5,
+        ingredients: tmpl.ingredients.map(i => ({
+          ...i,
+          id: generateId('li'),
+          rawMaterialId: null,
+        })),
+      }
+      return { ...prev, softCoating: { ...sc, layers: [...layers, newLayer] } }
+    })
+  }
+
+  function removeCoatingLayer(layerId) {
+    setActiveFormula(prev => {
+      if (!prev) return prev
+      const sc = prev.softCoating || DEFAULT_SOFT_COATING
+      return {
+        ...prev,
+        softCoating: { ...sc, layers: (sc.layers || []).filter(l => l.id !== layerId) },
+      }
+    })
+  }
+
+  function updateCoatingLayer(layerId, fields) {
+    setActiveFormula(prev => {
+      if (!prev) return prev
+      const sc = prev.softCoating || DEFAULT_SOFT_COATING
+      return {
+        ...prev,
+        softCoating: {
+          ...sc,
+          layers: (sc.layers || []).map(l => l.id === layerId ? { ...l, ...fields } : l),
+        },
+      }
+    })
+  }
+
   return {
     formulas,
     saveFormula,
@@ -431,5 +494,11 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
     createSnapshot,
     setMacrothemeForFormula,
     importBriefing,
+
+    // Soft Coating
+    updateSoftCoating,
+    addCoatingLayer,
+    removeCoatingLayer,
+    updateCoatingLayer,
   }
 }

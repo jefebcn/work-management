@@ -100,6 +100,12 @@ export function AppProvider({ children }) {
     setMacrothemeForFormula: formulaStore.setMacrothemeForFormula,
     importBriefing:          formulaStore.importBriefing,
 
+    // Soft Coating
+    updateSoftCoating:       formulaStore.updateSoftCoating,
+    addCoatingLayer:         formulaStore.addCoatingLayer,
+    removeCoatingLayer:      formulaStore.removeCoatingLayer,
+    updateCoatingLayer:      formulaStore.updateCoatingLayer,
+
     // Macrothemes
     macrothemes:        macrothemeStore.macrothemes,
     addMacrotheme:      macrothemeStore.addMacrotheme,
