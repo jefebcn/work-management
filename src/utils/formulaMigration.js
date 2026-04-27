@@ -33,6 +33,13 @@ export function migrateFormula(f, macrothemes) {
   if (!Array.isArray(out.selectedClaims))  out.selectedClaims     = []
   if (out.softCoating === undefined)       out.softCoating        = null
 
+  // Ensure every ingredient has coatingLayerId (target: 'Nucleo' / coating layer)
+  if (Array.isArray(out.ingredients)) {
+    out.ingredients = out.ingredients.map(i =>
+      i.coatingLayerId === undefined ? { ...i, coatingLayerId: null } : i,
+    )
+  }
+
   // Migra status da binario {draft|finalized} al lifecycle a 4 stati
   out.status = migrateStatus(out.status)
 

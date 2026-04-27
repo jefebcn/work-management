@@ -101,10 +101,11 @@ export function AppProvider({ children }) {
     importBriefing:          formulaStore.importBriefing,
 
     // Soft Coating
-    updateSoftCoating:       formulaStore.updateSoftCoating,
-    addCoatingLayer:         formulaStore.addCoatingLayer,
-    removeCoatingLayer:      formulaStore.removeCoatingLayer,
-    updateCoatingLayer:      formulaStore.updateCoatingLayer,
+    updateSoftCoating:          formulaStore.updateSoftCoating,
+    addCoatingLayer:            formulaStore.addCoatingLayer,
+    removeCoatingLayer:         formulaStore.removeCoatingLayer,
+    updateCoatingLayer:         formulaStore.updateCoatingLayer,
+    setIngredientCoatingLayer:  formulaStore.setIngredientCoatingLayer,
 
     // Macrothemes
     macrothemes:        macrothemeStore.macrothemes,

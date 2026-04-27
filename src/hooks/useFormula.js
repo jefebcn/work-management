@@ -235,7 +235,7 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
         ...prev,
         ingredients: [
           ...prev.ingredients,
-          { rowId: generateId('row'), rawMaterialId, amountMg: 0, isFiller: false, antiCakingPercent: 0 },
+          { rowId: generateId('row'), rawMaterialId, amountMg: 0, isFiller: false, antiCakingPercent: 0, coatingLayerId: null },
         ],
       }
     })
@@ -255,7 +255,7 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
         ...prev,
         ingredients: [
           ...prev.ingredients.map(i => ({ ...i, isFiller: false })),
-          { rowId: generateId('row'), rawMaterialId, amountMg: 0, isFiller: true, antiCakingPercent: 0 },
+          { rowId: generateId('row'), rawMaterialId, amountMg: 0, isFiller: true, antiCakingPercent: 0, coatingLayerId: null },
         ],
       }
     })
@@ -283,6 +283,7 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
             amountMg: prev.targetWeightMg * (antiCakingPercent / 100),
             isFiller: false,
             antiCakingPercent,
+            coatingLayerId: null,
           },
         ],
       }
@@ -431,9 +432,9 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
         id:   generateId('layer'),
         name: type === 'finishing' ? 'Finishing' : `Coating ${count}`,
         type,
-        syrupTemplate:             'maltitolo_gomma',
-        targetWeightGainPct:       type === 'finishing' ? 5 : 10,
-        processLossOverdosagePct:  7.5,
+        syrupTemplate:            'maltitolo_gomma',
+        targetWeightGainPct:      type === 'finishing' ? 5 : 10,
+        processLossOverdosagePct: 7.5,
         ingredients: tmpl.ingredients.map(i => ({
           ...i,
           id: generateId('li'),
@@ -441,6 +442,18 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
         })),
       }
       return { ...prev, softCoating: { ...sc, layers: [...layers, newLayer] } }
+    })
+  }
+
+  function setIngredientCoatingLayer(rowId, layerId) {
+    setActiveFormula(prev => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        ingredients: prev.ingredients.map(i =>
+          i.rowId === rowId ? { ...i, coatingLayerId: layerId || null } : i,
+        ),
+      }
     })
   }
 
@@ -502,5 +515,6 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
     addCoatingLayer,
     removeCoatingLayer,
     updateCoatingLayer,
+    setIngredientCoatingLayer,
   }
 }

@@ -1,3 +1,5 @@
+// ── Templates & defaults ──────────────────────────────────────────────────
+
 // Syrup template presets (binder:thickener at 4:1 default)
 export const SYRUP_TEMPLATES = {
   maltitolo_gomma: {
@@ -32,37 +34,52 @@ export const DEFAULT_SOFT_COATING = {
   layers: [],
 }
 
-// Approximate density in mg/mm³ (≈ g/cm³ numerically)
-const DENSITY = { Dura: 1.3, Morbida: 1.1 }
+// ── Geometry ──────────────────────────────────────────────────────────────
 
-export function estimateSurfaceAreaMm2(shape, coreWeightMg, consistency) {
-  const density  = DENSITY[consistency] || 1.2
-  const vol      = coreWeightMg / density        // mm³
+const DENSITY = { Dura: 1.3, Morbida: 1.1 }   // mg/mm³ ≈ g/cm³
 
+export function estimateSurfaceAreaMm2(shape, weightMg, consistency) {
+  const density = DENSITY[consistency] || 1.2
+  const vol     = weightMg / density
   switch (shape) {
     case 'Cilindro': {
-      // squat cylinder h=2r → V=2πr³
       const r = Math.cbrt(vol / (2 * Math.PI))
-      return 6 * Math.PI * r * r               // 2πr(r+h) = 6πr²
+      return 6 * Math.PI * r * r
     }
     case 'Oblunga': {
-      // prolate spheroid a=2b: SA ≈ sphere×1.2
       const r = Math.cbrt((3 * vol) / (4 * Math.PI))
       return 4 * Math.PI * r * r * 1.2
     }
-    default: {                                  // Sfera
+    default: {
       const r = Math.cbrt((3 * vol) / (4 * Math.PI))
       return 4 * Math.PI * r * r
     }
   }
 }
 
-export function computeCoatingResults(softCoating, formula) {
+// ── Active-ingredient detection ───────────────────────────────────────────
+// An ingredient is "active" when its raw material has an activeNutrient field
+// set to anything other than null/undefined/empty/'Eccipiente'.
+export function isIngredientActive(rawMaterial) {
+  const an = rawMaterial?.activeNutrient
+  return !!an && an !== 'Eccipiente'
+}
+
+// ── Mass-balance calculation ──────────────────────────────────────────────
+// Final piece weight = Core + Σ(Syrup dry residue) + Σ(Assigned powder dry weight)
+//
+// Process loss (overdosage) is applied SELECTIVELY:
+//   - Only to ingredients assigned to a *coating* layer (layer.type === 'coating')
+//     AND flagged as Active (rawMaterial.activeNutrient set)
+//   - Used in batch-quantity calculations (appliedMg) — does NOT inflate the
+//     dry weight that stays on the finished piece (amountMg).
+export function computeCoatingResults(softCoating, formula, rawMaterials = []) {
   if (!softCoating?.enabled) return null
 
-  const coreWeightMg  = formula?.targetWeightMg || 500
-  const batchPieces   = softCoating.batchPieces  || 50000
-  const satThreshold  = softCoating.saturationAlert || 30
+  const coreWeightMg   = formula?.targetWeightMg || 500
+  const batchPieces    = softCoating.batchPieces  || 50000
+  const satThreshold   = softCoating.saturationAlert || 30
+  const allIngredients = formula?.ingredients || []
 
   const surfaceAreaMm2 = estimateSurfaceAreaMm2(
     softCoating.shape       || 'Sfera',
@@ -73,29 +90,71 @@ export function computeCoatingResults(softCoating, formula) {
   let accMg = coreWeightMg
 
   const layerResults = (softCoating.layers || []).map(layer => {
-    // Weight gain is calculated on the accumulated weight up to this layer
+    // ── Target weight gain on accumulated weight up to this layer ─────────
     const targetDryWeightMg = accMg * ((layer.targetWeightGainPct || 0) / 100)
 
+    // ── Syrup excipients (back-compat with existing panel UI) ─────────────
     const ingredientResults = (layer.ingredients || []).map(ing => {
-      const nominalDryMg    = targetDryWeightMg * ((ing.pctInDryFormula || 0) / 100)
-      const overdosage      = ing.isActive ? (1 + (layer.processLossOverdosagePct || 0) / 100) : 1
-      const effectiveDryMg  = nominalDryMg * overdosage
-      const dryPct          = (ing.dryResiduePercent ?? 100)
-      const wetAmountMg     = dryPct > 0 ? effectiveDryMg / (dryPct / 100) : 0
+      const nominalDryMg   = targetDryWeightMg * ((ing.pctInDryFormula || 0) / 100)
+      const overdosage     = ing.isActive ? (1 + (layer.processLossOverdosagePct || 0) / 100) : 1
+      const effectiveDryMg = nominalDryMg * overdosage
+      const dryPct         = ing.dryResiduePercent ?? 100
+      const wetAmountMg    = dryPct > 0 ? effectiveDryMg / (dryPct / 100) : 0
       return { ...ing, nominalDryMg, effectiveDryMg, wetAmountMg }
     })
+    const syrupDryMg = ingredientResults.reduce((s, i) => s + i.effectiveDryMg, 0)
 
-    accMg += targetDryWeightMg
+    // ── Powders assigned from Composizione → this layer ───────────────────
+    // Selective overdosage: only on coating layers AND only on Active ingredients
+    const isCoatingType = (layer.type || 'coating') === 'coating'
+    const assigned = allIngredients.filter(i => i.coatingLayerId === layer.id)
 
-    return { ...layer, targetDryWeightMg, ingredientResults, accumulatedWeightMg: accMg }
+    const assignedResults = assigned.map(ing => {
+      const rm         = rawMaterials.find(r => r.id === ing.rawMaterialId) || null
+      const active     = isIngredientActive(rm)
+      const eligible   = isCoatingType && active                       // overdosage gate
+      const overdosage = eligible ? (1 + (layer.processLossOverdosagePct || 0) / 100) : 1
+      const amountMg   = parseFloat(ing.amountMg) || 0
+      return {
+        rowId:     ing.rowId,
+        rawMaterialId: ing.rawMaterialId,
+        name:      rm?.name || '—',
+        amountMg,                               // dry weight that stays on the piece
+        appliedMg: amountMg * overdosage,       // quantity actually used in batch (with loss)
+        isActive:  active,
+        overdosage,
+      }
+    })
+
+    const assignedDryMg     = assignedResults.reduce((s, i) => s + i.amountMg,  0)
+    const assignedAppliedMg = assignedResults.reduce((s, i) => s + i.appliedMg, 0)
+
+    // Layer totals — mass balance: dry powder + dry syrup residue
+    const totalLayerDryMg = assignedDryMg + syrupDryMg
+    accMg += totalLayerDryMg
+
+    return {
+      ...layer,
+      // Back-compat fields used by existing UI
+      targetDryWeightMg,
+      ingredientResults,
+      // Mass-balance additions
+      assignedResults,
+      assignedDryMg,
+      assignedAppliedMg,
+      syrupDryMg,
+      totalLayerDryMg,
+      accumulatedWeightMg: accMg,
+    }
   })
 
-  const totalCoatingDryMg  = layerResults.reduce((s, l) => s + l.targetDryWeightMg, 0)
+  const totalCoatingDryMg  = layerResults.reduce((s, l) => s + l.totalLayerDryMg, 0)
   const finalWeightMg      = coreWeightMg + totalCoatingDryMg
   const totalWeightGainPct = coreWeightMg > 0 ? (totalCoatingDryMg / coreWeightMg) * 100 : 0
   const saturationExceeded = totalWeightGainPct > satThreshold
 
-  // Morbida cores absorb part of the liquid phase (porosity reduces surface build-up)
+  // Soft-core porosity: a fraction of the liquid phase is absorbed and never
+  // builds up on the surface (corrects external volume but not internal mass)
   const porosityFactor = (softCoating.consistency === 'Morbida')
     ? (softCoating.porosityFactor || 0) / 100
     : 0
@@ -105,7 +164,14 @@ export function computeCoatingResults(softCoating, formula) {
           ss + (i.wetAmountMg - i.effectiveDryMg) * porosityFactor, 0), 0)
     : 0
 
-  const batchKg = (finalWeightMg * batchPieces) / 1e6
+  // Batch totals: piece weight × batch count (in kg).
+  // For the *applied* mass (consumption with loss) we use appliedMg of assigned actives.
+  const batchPieceWeightMg  = finalWeightMg
+  const batchAppliedDryMg   = layerResults.reduce(
+    (s, l) => s + l.assignedAppliedMg + l.syrupDryMg, 0,
+  )
+  const batchKg             = (batchPieceWeightMg * batchPieces) / 1e6
+  const batchAppliedKg      = ((coreWeightMg + batchAppliedDryMg) * batchPieces) / 1e6
 
   return {
     coreWeightMg,
@@ -117,6 +183,7 @@ export function computeCoatingResults(softCoating, formula) {
     saturationExceeded,
     satThreshold,
     absorbedMg,
-    batchKg,
+    batchKg,             // kg actually deposited on finished pieces
+    batchAppliedKg,      // kg consumed during process (with selective overdosage)
   }
 }
