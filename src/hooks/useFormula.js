@@ -435,11 +435,35 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
         syrupTemplate:            'maltitolo_gomma',
         targetWeightGainPct:      type === 'finishing' ? 5 : 10,
         processLossOverdosagePct: 7.5,
-        ingredients: tmpl.ingredients.map(i => ({
-          ...i,
-          id: generateId('li'),
-          rawMaterialId: null,
-        })),
+        ingredients: [
+          // Template binder + thickener (4:1 ratio)
+          ...tmpl.ingredients.map(i => ({
+            ...i,
+            id: generateId('li'),
+            rawMaterialId: null,
+          })),
+          // Empty Color slot
+          {
+            id: generateId('li'),
+            name: '',
+            role: 'colorante',
+            pctInDryFormula:   0,
+            dryResiduePercent: 100,
+            isActive: false,
+            rawMaterialId: null,
+            colorHex: null,
+          },
+          // Empty Aroma slot
+          {
+            id: generateId('li'),
+            name: '',
+            role: 'aromatizzante',
+            pctInDryFormula:   0,
+            dryResiduePercent: 100,
+            isActive: false,
+            rawMaterialId: null,
+          },
+        ],
       }
       return { ...prev, softCoating: { ...sc, layers: [...layers, newLayer] } }
     })
