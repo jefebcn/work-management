@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react'
 import {
   Layers, Plus, Trash2, ChevronDown, ChevronRight,
-  AlertTriangle, CheckCircle2, Info, Beaker,
+  AlertTriangle, CheckCircle2, Info, Beaker, X,
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext.jsx'
 import Button from '../ui/Button.jsx'
+import CoatingVisualizer from './CoatingVisualizer.jsx'
 import {
   computeCoatingResults,
   SYRUP_TEMPLATES,
@@ -21,97 +22,112 @@ function parseDec(s) {
   return parseFloat(String(s ?? '').replace(',', '.'))
 }
 
-// ── Layer ingredient editor row ─────────────────────────────────────────────
-function IngRow({ ing, onUpdate, onRemove }) {
+// ── Syrup role groups (fixed 4-slot builder per layer) ───────────────────────
+const SYRUP_ROLE_GROUPS = [
+  { key: 'legante',       label: 'Legante',    hint: 'es. Maltitolo, Glucosio' },
+  { key: 'addensante',    label: 'Addensante', hint: 'es. Gomma Arabica, Pectina' },
+  { key: 'colorante',     label: 'Colore',     hint: 'coloranti naturali / E-num.' },
+  { key: 'aromatizzante', label: 'Aroma',      hint: 'oli essenziali, aromi' },
+]
+
+// ── Powder assignment selector ────────────────────────────────────────────────
+function AssignedPowdersSelector({ formulaIngredients, rawMaterials, layerId, onSetLayer }) {
+  const [pickId, setPickId] = React.useState('')
+
+  const allIngs  = formulaIngredients || []
+  const assigned = allIngs.filter(i => i.coatingLayerId === layerId)
+  const available = allIngs.filter(i => i.coatingLayerId !== layerId && i.rawMaterialId)
+
+  function handleAdd() {
+    if (!pickId) return
+    onSetLayer(pickId, layerId)
+    setPickId('')
+  }
+
   return (
-    <tr className="border-t border-galenic-border/30 hover:bg-galenic-elevated/20 transition-colors">
-      <td className="py-1.5 pr-2">
-        <input
-          type="text"
-          className="cell-input w-32"
-          value={ing.name}
-          onChange={e => onUpdate({ name: e.target.value })}
-        />
-      </td>
-      <td className="py-1.5 pr-2">
-        <select
-          className="cell-input text-xs"
-          value={ing.role}
-          onChange={e => onUpdate({ role: e.target.value })}
-        >
-          {LAYER_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-        </select>
-      </td>
-      <td className="py-1.5 pr-2 text-center">
-        <input
-          type="checkbox"
-          checked={!!ing.isActive}
-          onChange={e => onUpdate({ isActive: e.target.checked })}
-          className="accent-[#00a4bd] w-3.5 h-3.5"
-        />
-      </td>
-      <td className="py-1.5 pr-2">
-        <input
-          type="text" inputMode="decimal"
-          className="cell-input w-16 text-right"
-          defaultValue={fmtDec(ing.pctInDryFormula, 1)}
-          onBlur={e => {
-            const v = parseDec(e.target.value)
-            if (!isNaN(v)) onUpdate({ pctInDryFormula: v })
-            e.target.value = fmtDec(isNaN(parseDec(e.target.value)) ? ing.pctInDryFormula : parseDec(e.target.value), 1)
-          }}
-        />
-      </td>
-      <td className="py-1.5 pr-2">
-        <input
-          type="text" inputMode="decimal"
-          className="cell-input w-16 text-right"
-          defaultValue={fmtDec(ing.dryResiduePercent, 0)}
-          onBlur={e => {
-            const v = parseDec(e.target.value)
-            if (!isNaN(v)) onUpdate({ dryResiduePercent: v })
-            e.target.value = fmtDec(isNaN(parseDec(e.target.value)) ? ing.dryResiduePercent : parseDec(e.target.value), 0)
-          }}
-        />
-      </td>
-      <td className="py-1.5">
-        <button
-          onClick={onRemove}
-          className="p-1 text-galenic-muted hover:text-galenic-danger transition-colors rounded"
-        >
-          <Trash2 size={12} />
-        </button>
-      </td>
-    </tr>
+    <div className="space-y-1.5">
+      {assigned.length > 0 && (
+        <div className="space-y-1">
+          {assigned.map(ing => {
+            const rm = (rawMaterials || []).find(r => r.id === ing.rawMaterialId)
+            const isActive = rm?.activeNutrient && rm.activeNutrient !== 'Eccipiente'
+            return (
+              <div
+                key={ing.rowId}
+                className="flex items-center justify-between gap-2 px-2 py-1 bg-galenic-elevated/50 rounded-md text-xs font-mono border border-galenic-border/40"
+              >
+                <span className="flex items-center gap-1.5 min-w-0">
+                  {isActive && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-galenic-ok shrink-0" title="Principio attivo — riceve sovradosaggio" />
+                  )}
+                  <span className="text-galenic-primary truncate">{rm?.name || '—'}</span>
+                  <span className="text-galenic-muted shrink-0">{fmtDec(ing.amountMg)} mg</span>
+                  {isActive && (
+                    <span className="text-galenic-muted shrink-0 text-[10px]">(+loss)</span>
+                  )}
+                </span>
+                <button
+                  onClick={() => onSetLayer(ing.rowId, null)}
+                  className="p-0.5 text-galenic-muted hover:text-galenic-danger transition-colors rounded shrink-0"
+                  title="Rimuovi da questo strato → torna a Nucleo"
+                >
+                  <X size={11} />
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {available.length > 0 ? (
+        <div className="flex items-center gap-2">
+          <select
+            className="cell-input flex-1 text-xs"
+            value={pickId}
+            onChange={e => setPickId(e.target.value)}
+          >
+            <option value="">— Assegna ingrediente da Composizione —</option>
+            {available.map(ing => {
+              const rm = (rawMaterials || []).find(r => r.id === ing.rawMaterialId)
+              const origin = !ing.coatingLayerId ? 'Nucleo' : 'altro strato'
+              return (
+                <option key={ing.rowId} value={ing.rowId}>
+                  {rm?.name || '—'} — {fmtDec(ing.amountMg)} mg ({origin})
+                </option>
+              )
+            })}
+          </select>
+          <button
+            onClick={handleAdd}
+            disabled={!pickId}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-galenic-accent text-white text-xs font-mono hover:opacity-90 disabled:opacity-40 whitespace-nowrap transition-opacity"
+          >
+            <Plus size={11} />Pesca
+          </button>
+        </div>
+      ) : assigned.length === 0 && (
+        <p className="text-[10px] font-mono text-galenic-muted italic">
+          Aggiungi ingredienti nella scheda Composizione per assegnarli a questo strato.
+        </p>
+      )}
+    </div>
   )
 }
 
 // ── Expanded layer detail ────────────────────────────────────────────────────
-function LayerDetail({ layer, layerResult, dosiAlGiorno, onUpdate }) {
+function LayerDetail({ layer, layerResult, dosiAlGiorno, onUpdate, formulaIngredients, rawMaterials, onSetLayer }) {
   function handleTemplateChange(key) {
     const tmpl = SYRUP_TEMPLATES[key]
     if (!tmpl) return
-    onUpdate({
-      syrupTemplate: key,
-      ingredients: tmpl.ingredients.map(i => ({
-        ...i,
-        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
-        rawMaterialId: null,
-      })),
+    // Merge template values into existing slots by role
+    const existing = layer.ingredients || []
+    const merged = existing.map(ing => {
+      const match = tmpl.ingredients.find(t => t.role === ing.role)
+      return match
+        ? { ...ing, name: match.name, pctInDryFormula: match.pctInDryFormula, dryResiduePercent: match.dryResiduePercent }
+        : { ...ing, pctInDryFormula: 0 }
     })
-  }
-
-  function addIngredient() {
-    const newIng = {
-      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
-      name: 'Nuovo ingrediente',
-      role: 'altro',
-      isActive: false,
-      pctInDryFormula: 0,
-      dryResiduePercent: 100,
-      rawMaterialId: null,
-    }
-    onUpdate({ ingredients: [...(layer.ingredients || []), newIng] })
+    onUpdate({ syrupTemplate: key, ingredients: merged })
   }
 
   function updateIng(id, fields) {
@@ -120,15 +136,13 @@ function LayerDetail({ layer, layerResult, dosiAlGiorno, onUpdate }) {
     })
   }
 
-  function removeIng(id) {
-    onUpdate({ ingredients: (layer.ingredients || []).filter(i => i.id !== id) })
-  }
-
-  const mgPiece = layerResult?.targetDryWeightMg ?? 0
-  const mgDie   = mgPiece * (dosiAlGiorno || 1)
+  const mgPiece  = layerResult?.targetDryWeightMg ?? 0
+  const mgDie    = mgPiece * (dosiAlGiorno || 1)
+  const totalPct = (layer.ingredients || []).reduce((s, i) => s + (i.pctInDryFormula || 0), 0)
+  const pctOk    = totalPct === 0 || Math.abs(totalPct - 100) < 0.5
 
   return (
-    <div className="bg-galenic-elevated/20 border-t border-galenic-border/40 px-4 py-3 space-y-3">
+    <div className="bg-galenic-elevated/20 border-t border-galenic-border/40 px-4 py-3 space-y-4">
       {/* Row 1: name, type, template, overdosage */}
       <div className="flex items-end gap-3 flex-wrap">
         <div>
@@ -192,61 +206,96 @@ function LayerDetail({ layer, layerResult, dosiAlGiorno, onUpdate }) {
         </div>
       </div>
 
-      {/* Calculated info row */}
+      {/* Calculated info */}
       <div className="flex gap-4 text-xs font-mono text-galenic-muted">
-        <span>Residuo secco per caramella: <span className="text-galenic-primary font-semibold">{fmtDec(mgPiece)} mg</span></span>
+        <span>Residuo secco / caramella: <span className="text-galenic-primary font-semibold">{fmtDec(mgPiece)} mg</span></span>
         <span>Per die: <span className="text-galenic-primary font-semibold">{fmtDec(mgDie)} mg</span></span>
       </div>
 
-      {/* Ingredient table */}
-      <div>
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="cell-unit">Ingredienti sciroppo (% sul residuo secco)</span>
-          <button
-            onClick={addIngredient}
-            className="flex items-center gap-1 text-xs text-galenic-accent hover:opacity-80 font-mono transition-opacity"
-          >
-            <Plus size={10} />Aggiungi
-          </button>
+      {/* Sciroppo — grouped by role (4 fixed slots) */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="cell-unit">Sciroppo (% sul residuo secco)</span>
+          <span className={`text-[10px] font-mono font-semibold ${pctOk ? 'text-galenic-ok' : 'text-galenic-danger'}`}>
+            Σ {fmtDec(totalPct, 1)}%
+          </span>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs font-mono">
-            <thead>
-              <tr className="text-galenic-muted">
-                <th className="text-left py-1 pr-2 font-medium">Nome</th>
-                <th className="text-left py-1 pr-2 font-medium">Ruolo</th>
-                <th className="text-center py-1 pr-2 font-medium" title="Ingrediente attivo — riceve sovra-dosaggio perdita di processo">
-                  Attivo
-                </th>
-                <th className="text-right py-1 pr-2 font-medium">% dry</th>
-                <th className="text-right py-1 pr-2 font-medium">Res.secco%</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {(layer.ingredients || []).map(ing => (
-                <IngRow
-                  key={ing.id}
-                  ing={ing}
-                  onUpdate={f => updateIng(ing.id, f)}
-                  onRemove={() => removeIng(ing.id)}
+
+        {/* Column labels */}
+        <div className="grid grid-cols-[80px_1fr_58px_58px_26px] gap-1.5 text-[10px] font-mono text-galenic-muted px-0.5">
+          <span>Ruolo</span><span>Nome</span>
+          <span className="text-right">% dry</span>
+          <span className="text-right">Res.%</span>
+          <span />
+        </div>
+
+        {SYRUP_ROLE_GROUPS.map(group => {
+          const ing = (layer.ingredients || []).find(i => i.role === group.key)
+          if (!ing) return null
+          return (
+            <div key={group.key} className="grid grid-cols-[80px_1fr_58px_58px_26px] gap-1.5 items-center">
+              <span className="text-[11px] font-mono text-galenic-muted truncate" title={group.hint}>
+                {group.label}
+              </span>
+              <input
+                type="text"
+                className="cell-input text-xs"
+                value={ing.name}
+                placeholder={group.hint}
+                onChange={e => updateIng(ing.id, { name: e.target.value })}
+              />
+              <input
+                type="text" inputMode="decimal"
+                className="cell-input text-right text-xs"
+                defaultValue={fmtDec(ing.pctInDryFormula, 1)}
+                title="% nel residuo secco"
+                onBlur={e => {
+                  const v = parseDec(e.target.value)
+                  if (!isNaN(v)) updateIng(ing.id, { pctInDryFormula: v })
+                  e.target.value = fmtDec(isNaN(parseDec(e.target.value)) ? ing.pctInDryFormula : parseDec(e.target.value), 1)
+                }}
+              />
+              <input
+                type="text" inputMode="decimal"
+                className="cell-input text-right text-xs"
+                defaultValue={fmtDec(ing.dryResiduePercent, 0)}
+                title="Residuo secco %"
+                onBlur={e => {
+                  const v = parseDec(e.target.value)
+                  if (!isNaN(v)) updateIng(ing.id, { dryResiduePercent: v })
+                  e.target.value = fmtDec(isNaN(parseDec(e.target.value)) ? ing.dryResiduePercent : parseDec(e.target.value), 0)
+                }}
+              />
+              {group.key === 'colorante' ? (
+                <input
+                  type="color"
+                  className="h-6 w-6 rounded cursor-pointer border border-galenic-border p-0.5 bg-galenic-elevated"
+                  value={ing.colorHex || '#ffffff'}
+                  onChange={e => updateIng(ing.id, { colorHex: e.target.value })}
+                  title="Colore strato (anteprima visiva)"
                 />
-              ))}
-            </tbody>
-          </table>
-          {(layer.ingredients || []).length === 0 && (
-            <p className="text-xs text-galenic-muted font-mono py-2 text-center">
-              Nessun ingrediente — scegli un template o aggiungi manualmente.
-            </p>
-          )}
-        </div>
+              ) : <span />}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Assigned powders from Composizione */}
+      <div className="space-y-2">
+        <span className="cell-unit">Polveri da Composizione assegnate a questo strato</span>
+        <AssignedPowdersSelector
+          formulaIngredients={formulaIngredients}
+          rawMaterials={rawMaterials}
+          layerId={layer.id}
+          onSetLayer={onSetLayer}
+        />
       </div>
     </div>
   )
 }
 
 // ── Layer row (triple-sync: %, mg/piece, mg/die) ─────────────────────────────
-function LayerRow({ layer, layerResult, coreWeightMg, dosiAlGiorno, onUpdate, onRemove, expanded, onToggle }) {
+function LayerRow({ layer, layerResult, coreWeightMg, dosiAlGiorno, onUpdate, onRemove, expanded, onToggle, formulaIngredients, rawMaterials, onSetLayer }) {
   const mgPiece = layerResult?.targetDryWeightMg ?? 0
   const mgDie   = mgPiece * (dosiAlGiorno || 1)
 
@@ -360,6 +409,9 @@ function LayerRow({ layer, layerResult, coreWeightMg, dosiAlGiorno, onUpdate, on
               layerResult={layerResult}
               dosiAlGiorno={dosiAlGiorno}
               onUpdate={onUpdate}
+              formulaIngredients={formulaIngredients}
+              rawMaterials={rawMaterials}
+              onSetLayer={onSetLayer}
             />
           </td>
         </tr>
@@ -413,10 +465,12 @@ function WeightStack({ results }) {
 export default function SoftCoatingPanel() {
   const {
     activeFormula,
+    rawMaterials,
     updateSoftCoating,
     addCoatingLayer,
     removeCoatingLayer,
     updateCoatingLayer,
+    setIngredientCoatingLayer,
   } = useApp()
 
   const [expandedLayer, setExpandedLayer] = useState(null)
@@ -424,7 +478,7 @@ export default function SoftCoatingPanel() {
   if (!activeFormula) return null
 
   const sc      = activeFormula.softCoating || DEFAULT_SOFT_COATING
-  const results = computeCoatingResults(sc, activeFormula)
+  const results = computeCoatingResults(sc, activeFormula, rawMaterials)
 
   function toggleEnabled() {
     updateSoftCoating({ enabled: !sc.enabled })
@@ -556,18 +610,23 @@ export default function SoftCoatingPanel() {
             </div>
           </section>
 
-          {/* ── Weight stack visualization ────────────────────────────── */}
+          {/* ── Weight stack + visual preview ─────────────────────────── */}
           {results && results.layerResults.length > 0 && (
             <section className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <h4 className="text-[11px] font-semibold uppercase tracking-wider text-galenic-muted font-mono">
-                  Composizione peso finale
-                </h4>
-                <span className="text-xs font-mono text-galenic-primary font-semibold">
-                  {fmtDec(results.finalWeightMg, 1)} mg / caramella
-                </span>
+              <div className="flex items-start gap-4">
+                <div className="flex-1 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-[11px] font-semibold uppercase tracking-wider text-galenic-muted font-mono">
+                      Composizione peso finale
+                    </h4>
+                    <span className="text-xs font-mono text-galenic-primary font-semibold">
+                      {fmtDec(results.finalWeightMg, 1)} mg / caramella
+                    </span>
+                  </div>
+                  <WeightStack results={results} />
+                </div>
+                <CoatingVisualizer sc={sc} results={results} />
               </div>
-              <WeightStack results={results} />
             </section>
           )}
 
@@ -619,6 +678,9 @@ export default function SoftCoatingPanel() {
                         onRemove={() => { removeCoatingLayer(layer.id); setExpandedLayer(null) }}
                         expanded={expandedLayer === layer.id}
                         onToggle={() => toggleLayer(layer.id)}
+                        formulaIngredients={activeFormula.ingredients}
+                        rawMaterials={rawMaterials}
+                        onSetLayer={setIngredientCoatingLayer}
                       />
                     )
                   })}
