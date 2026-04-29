@@ -67,14 +67,14 @@ export default function FormulaBuilder() {
   const [showExport, setShowExport]             = useState(false)
   const [showVersionModal, setShowVersionModal] = useState(false)
   const [activeTab, setActiveTab]               = useState(
-    () => activeFormula?.type === 'Caramelle' ? 'coating' : 'balance',
+    () => activeFormula?.type === 'Sistemi Gommosi e Coated' ? 'coating' : 'balance',
   )
   const [unitMode, setUnitMode]                 = useState('dose') // 'dose' | 'die'
   const [drawerOpen, setDrawerOpen]             = useState(false)
 
   // Reset to the most relevant tab when a different formula is opened
   useEffect(() => {
-    setActiveTab(activeFormula?.type === 'Caramelle' ? 'coating' : 'balance')
+    setActiveTab(activeFormula?.type === 'Sistemi Gommosi e Coated' ? 'coating' : 'balance')
   }, [activeFormula?.id])
 
   if (!activeFormula) return null

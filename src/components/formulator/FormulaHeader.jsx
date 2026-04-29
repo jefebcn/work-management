@@ -11,7 +11,7 @@ const FORMULA_TYPES = [
   { value: 'Capsule',   label: 'Capsule' },
   { value: 'Polveri',   label: 'Polveri' },
   { value: 'Liquidi',   label: 'Liquidi' },
-  { value: 'Caramelle', label: 'Caramelle' },
+  { value: 'Sistemi Gommosi e Coated', label: 'Sistemi Gommosi e Coated' },
 ]
 
 const WEIGHT_UNITS = [

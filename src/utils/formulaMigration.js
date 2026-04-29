@@ -40,6 +40,9 @@ export function migrateFormula(f, macrothemes) {
     )
   }
 
+  // Migra tipo formula da 'Caramelle' al nuovo nome macrotema
+  if (out.type === 'Caramelle') out.type = 'Sistemi Gommosi e Coated'
+
   // Migra status da binario {draft|finalized} al lifecycle a 4 stati
   out.status = migrateStatus(out.status)
 

@@ -121,7 +121,7 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
       briefingNotes:      opts.briefingNotes      || '',
       briefingCode:       opts.briefingCode       || '',
       selectedClaims: [],
-      softCoating:    initialType === 'Caramelle'
+      softCoating:    initialType === 'Sistemi Gommosi e Coated'
         ? { ...DEFAULT_SOFT_COATING, enabled: true }
         : null,
       version:  1,
@@ -481,6 +481,45 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
     })
   }
 
+  // Converts a Fast Lab prototype into a full Soft-Coating layer atomically.
+  // actives = [{ rowId, amountMg }] — each active's desired coating amount.
+  function importFastLabPrototype({ coreWeightMg, finalWeightMg, actives }) {
+    setActiveFormula(prev => {
+      if (!prev) return prev
+      const sc         = prev.softCoating || DEFAULT_SOFT_COATING
+      const layerId    = generateId('layer')
+      const wgPct      = coreWeightMg > 0
+        ? Math.max(0, (finalWeightMg - coreWeightMg) / coreWeightMg * 100)
+        : 0
+      const newLayer = {
+        id:                       layerId,
+        name:                     'Strato Coating',
+        type:                     'coating',
+        syrupTemplate:            'custom',
+        targetWeightGainPct:      wgPct,
+        processLossOverdosagePct: 7.5,
+        ingredients: [
+          { id: generateId('li'), name: '', role: 'legante',       pctInDryFormula: 0, dryResiduePercent: 100, isActive: false, rawMaterialId: null },
+          { id: generateId('li'), name: '', role: 'addensante',    pctInDryFormula: 0, dryResiduePercent: 100, isActive: false, rawMaterialId: null },
+          { id: generateId('li'), name: '', role: 'colorante',     pctInDryFormula: 0, dryResiduePercent: 100, isActive: false, rawMaterialId: null, colorHex: null },
+          { id: generateId('li'), name: '', role: 'aromatizzante', pctInDryFormula: 0, dryResiduePercent: 100, isActive: false, rawMaterialId: null },
+        ],
+      }
+      const activeMap = new Map(actives.map(a => [a.rowId, a.amountMg]))
+      const updatedIngredients = (prev.ingredients || []).map(ing =>
+        activeMap.has(ing.rowId)
+          ? { ...ing, coatingLayerId: layerId, amountMg: activeMap.get(ing.rowId) }
+          : ing,
+      )
+      return {
+        ...prev,
+        targetWeightMg: coreWeightMg,
+        softCoating:    { ...sc, enabled: true, layers: [...(sc.layers || []), newLayer] },
+        ingredients:    updatedIngredients,
+      }
+    })
+  }
+
   function removeCoatingLayer(layerId) {
     setActiveFormula(prev => {
       if (!prev) return prev
@@ -540,5 +579,6 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
     removeCoatingLayer,
     updateCoatingLayer,
     setIngredientCoatingLayer,
+    importFastLabPrototype,
   }
 }

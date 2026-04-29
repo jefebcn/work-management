@@ -38,9 +38,9 @@ export const SEED_MACROTHEMES = [
   },
   {
     id: 'macro-auto-caramelle',
-    name: 'Caramelle',
+    name: 'Sistemi Gommosi e Coated',
     kind: 'auto',
-    formType: 'Caramelle',
+    formType: 'Sistemi Gommosi e Coated',
     icon: 'Candy',
     createdAt: '2024-01-01T00:00:00.000Z',
   },

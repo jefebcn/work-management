@@ -16,7 +16,7 @@ const TYPE_DOT = {
   Capsule:   'bg-galenic-ok',
   Polveri:   'bg-yellow-400',
   Liquidi:   'bg-blue-400',
-  Caramelle: 'bg-orange-400',
+  'Sistemi Gommosi e Coated': 'bg-orange-400',
 }
 
 export default function FormulaList() {

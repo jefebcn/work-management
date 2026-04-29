@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react'
 import {
   Layers, Plus, Trash2, ChevronDown, ChevronRight,
-  AlertTriangle, CheckCircle2, Info, Beaker, X,
+  AlertTriangle, CheckCircle2, Info, Beaker, X, FlaskConical,
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext.jsx'
 import Button from '../ui/Button.jsx'
 import CoatingVisualizer from './CoatingVisualizer.jsx'
+import FastLabPrototype from './FastLabPrototype.jsx'
 import {
   computeCoatingResults,
   SYRUP_TEMPLATES,
@@ -474,6 +475,7 @@ export default function SoftCoatingPanel() {
   } = useApp()
 
   const [expandedLayer, setExpandedLayer] = useState(null)
+  const [subTab, setSubTab] = useState('multilayer')
 
   if (!activeFormula) return null
 
@@ -520,7 +522,36 @@ export default function SoftCoatingPanel() {
           </p>
         </div>
       ) : (
-        <div className="p-5 space-y-5">
+        <>
+          {/* Sub-tab switcher */}
+          <div className="px-5 pt-4 pb-3 border-b border-galenic-border/30">
+            <div className="flex gap-0.5 p-0.5 bg-galenic-elevated rounded-lg border border-galenic-border/50 w-fit">
+              {[
+                { id: 'multilayer', label: 'Multi-Layer', icon: <Layers       size={12} /> },
+                { id: 'fastlab',    label: 'Fast Lab',    icon: <FlaskConical size={12} /> },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setSubTab(tab.id)}
+                  className={[
+                    'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono transition-colors',
+                    subTab === tab.id
+                      ? 'bg-galenic-accent text-white shadow-sm'
+                      : 'text-galenic-muted hover:text-galenic-primary',
+                  ].join(' ')}
+                >
+                  {tab.icon}{tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {subTab === 'fastlab' && (
+            <FastLabPrototype onExported={() => setSubTab('multilayer')} />
+          )}
+
+          {subTab === 'multilayer' && (
+          <div className="p-5 space-y-5">
 
           {/* ── Core Configuration ────────────────────────────────────── */}
           <section className="space-y-3">
@@ -813,7 +844,9 @@ export default function SoftCoatingPanel() {
             )}
           </section>
 
-        </div>
+          </div>
+          )}
+        </>
       )}
     </div>
   )

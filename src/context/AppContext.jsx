@@ -106,6 +106,7 @@ export function AppProvider({ children }) {
     removeCoatingLayer:         formulaStore.removeCoatingLayer,
     updateCoatingLayer:         formulaStore.updateCoatingLayer,
     setIngredientCoatingLayer:  formulaStore.setIngredientCoatingLayer,
+    importFastLabPrototype:     formulaStore.importFastLabPrototype,
 
     // Macrothemes
     macrothemes:        macrothemeStore.macrothemes,

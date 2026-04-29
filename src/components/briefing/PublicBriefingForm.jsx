@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { FlaskConical, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react'
 import { dbGetBriefingById, dbSubmitBriefing } from '../../lib/db.js'
 
-const FORM_TYPES    = ['Compresse', 'Capsule', 'Polveri', 'Liquidi', 'Caramelle', 'Gel', 'Crema']
+const FORM_TYPES    = ['Compresse', 'Capsule', 'Polveri', 'Liquidi', 'Sistemi Gommosi e Coated', 'Gel', 'Crema']
 const PACK_OPTIONS  = ['Blister', 'Flacone', 'Bustina', 'Sacchetto', 'Barattolo', 'Altro']
 
 const EMPTY = {

@@ -15,7 +15,7 @@ import {
 import { supabase } from '../../lib/supabase.js'
 import Button from '../ui/Button.jsx'
 
-const FORM_TYPES = ['Compresse', 'Capsule', 'Polveri', 'Liquidi', 'Caramelle', 'Gel', 'Crema']
+const FORM_TYPES = ['Compresse', 'Capsule', 'Polveri', 'Liquidi', 'Sistemi Gommosi e Coated', 'Gel', 'Crema']
 const PACKAGING_OPTIONS = ['Blister', 'Flacone', 'Bustina', 'Sacchetto', 'Barattolo', 'Altro']
 const TEMPLATES_KEY = 'galenic_briefing_templates'
 
