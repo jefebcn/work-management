@@ -9,7 +9,8 @@ import { migrateStatus } from './statusLifecycle.js'
 export function migrateFormula(f, macrothemes) {
   const out = { ...f }
 
-  if (!out.macrothemeId) {
+  // Assign macrothemeId if missing or pointing to a macrotheme that no longer exists
+  if (!out.macrothemeId || (macrothemes?.length && !macrothemes.find(m => m.id === out.macrothemeId))) {
     out.macrothemeId = suggestMacrothemeId(out.type, macrothemes)
   }
   if (!out.productGroupId) {

@@ -11,10 +11,10 @@ export function useMacrothemes(user = null) {
     if (stored.length > 0) {
       const ids = new Set(stored.map(m => m.id))
       const missing = SEED_MACROTHEMES.filter(s => !ids.has(s.id))
-      // Refresh name/formType on existing auto-seeds so renames propagate
+      // Refresh all canonical fields on existing auto-seeds so renames and kind propagate
       const refreshed = stored.map(m => {
         const seed = SEED_MACROTHEMES.find(s => s.id === m.id)
-        return seed ? { ...m, name: seed.name, formType: seed.formType } : m
+        return seed ? { ...m, name: seed.name, formType: seed.formType, kind: seed.kind } : m
       })
       return missing.length > 0 ? [...refreshed, ...missing] : refreshed
     }

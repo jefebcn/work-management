@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import {
   Plus, Folder, FolderPlus, GitCompare, Trash2, FolderEdit, Layers,
   ExternalLink, Copy, History, MoreHorizontal,
@@ -26,14 +26,22 @@ export default function FormulaList() {
     setMacrothemeForFormula,
   } = useApp()
 
-  const [selectedMacroId,  setSelectedMacroId]  = useState(macrothemes[0]?.id ?? null)
+  const [selectedMacroId,  setSelectedMacroId]  = useState(() => macrothemes[0]?.id ?? null)
   const [compareSelection, setCompareSelection] = useState([])
   const [compareModal,     setCompareModal]     = useState(null)
   const [macroModal,       setMacroModal]       = useState(null)
-  const [historyGroup,     setHistoryGroup]     = useState(null)  // gruppo prodotto per cronologia
+  const [historyGroup,     setHistoryGroup]     = useState(null)
+
+  // Keep selectedMacroId valid when macrothemes array changes (e.g. after cloud sync)
+  useEffect(() => {
+    if (!macrothemes.length) return
+    if (!selectedMacroId || !macrothemes.find(m => m.id === selectedMacroId)) {
+      setSelectedMacroId(macrothemes[0].id)
+    }
+  }, [macrothemes])
 
   const activeMacro   = macrothemes.find(m => m.id === selectedMacroId) ?? macrothemes[0]
-  const activeMacroId = activeMacro?.id
+  const activeMacroId = activeMacro?.id ?? null
 
   const countsByMacro = useMemo(() => {
     const counts = {}
@@ -213,8 +221,11 @@ export default function FormulaList() {
         {productGroups.length === 0 ? (
           <div className="bg-galenic-surface border border-dashed border-galenic-border rounded-xl py-16 text-center shadow-sm">
             <div className="text-sm font-medium text-galenic-muted/70 mb-2">
-              Nessun prodotto in <span className="text-galenic-primary">{activeMacro?.name}</span>
+              Nessun progetto in questa categoria
             </div>
+            <p className="text-xs font-mono text-galenic-muted/50 mb-3">
+              {activeMacro?.name} è ancora vuoto
+            </p>
             <button
               onClick={() => newFormula({ macrothemeId: activeMacroId })}
               className="text-xs font-mono text-galenic-accent hover:opacity-80"
