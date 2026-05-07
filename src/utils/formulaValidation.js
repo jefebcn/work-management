@@ -67,13 +67,15 @@ export function validateCompressa(rows, rawMaterials) {
     const rm = rmMap[row.rawMaterialId]
     if (!rm) return
     totalMg += row.amountMg
-    if (rm.activeNutrient) {
+
+    const isLub = rm.category === 'lubrificante' || isLubricantName(rm.name)
+    if (isLub) {
+      excipientMg += row.amountMg
+      lubricantMg += row.amountMg
+    } else if (rm.activeNutrient) {
       activeMg += row.amountMg
     } else {
       excipientMg += row.amountMg
-      if (rm.category === 'lubrificante' || isLubricantName(rm.name)) {
-        lubricantMg += row.amountMg
-      }
     }
   })
 
