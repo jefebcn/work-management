@@ -5,10 +5,11 @@ import { validateRequired, validatePositiveNumber, validatePercent } from '../..
 import { VITAMINE_REF, MINERALI_REF, fmtLimit } from '../../data/regulatoryLimits.js'
 
 const CATEGORIES = [
-  { key: 'vitamina',   label: 'Vitamina' },
-  { key: 'minerale',   label: 'Minerale' },
-  { key: 'botanical',  label: 'Botanical / Funzionale' },
-  { key: 'eccipiente', label: 'Eccipiente' },
+  { key: 'vitamina',     label: 'Vitamina' },
+  { key: 'minerale',     label: 'Minerale' },
+  { key: 'botanical',    label: 'Botanical / Funzionale' },
+  { key: 'eccipiente',   label: 'Eccipiente' },
+  { key: 'lubrificante', label: 'Lubrificante / Antiaderente' },
 ]
 
 const EMPTY_FORM = {
@@ -69,7 +70,7 @@ export default function RawMaterialForm({ initial, onSubmit, onCancel }) {
   function handleCategoryChange(cat) {
     setCategory(cat)
     setNutrientRef('')
-    if (cat === 'eccipiente') {
+    if (cat === 'eccipiente' || cat === 'lubrificante') {
       setForm(prev => ({ ...prev, maxLimitMg: '', nrvReference: '', activeNutrient: '', titration: '100' }))
     }
   }
@@ -95,7 +96,7 @@ export default function RawMaterialForm({ initial, onSubmit, onCancel }) {
     e.name       = validateRequired(form.name, 'Nome')
     e.pricePerKg = validatePositiveNumber(form.pricePerKg, 'Prezzo/kg')
     e.purity     = validatePercent(form.purity, 'Purezza')
-    if (category !== 'eccipiente') {
+    if (category !== 'eccipiente' && category !== 'lubrificante') {
       e.titration = validatePercent(form.titration, 'Titolazione')
     }
     if (form.maxLimitMg !== '' && form.maxLimitMg !== null) {
@@ -116,23 +117,23 @@ export default function RawMaterialForm({ initial, onSubmit, onCancel }) {
       setErrors(errs)
       return
     }
-    const isEccipiente = category === 'eccipiente'
+    const isInert = category === 'eccipiente' || category === 'lubrificante'
     onSubmit({
       name:           form.name.trim(),
       supplier:       form.supplier.trim(),
       pricePerKg:     parseFloat(form.pricePerKg) || 0,
       purity:         parseFloat(form.purity) || 100,
-      titration:      isEccipiente ? 100 : (parseFloat(form.titration) || 100),
-      activeNutrient: isEccipiente ? '' : form.activeNutrient.trim(),
-      maxLimitMg:     isEccipiente ? 0 : (form.maxLimitMg !== '' ? parseFloat(form.maxLimitMg) : 0),
-      nrvReference:   isEccipiente ? 0 : (form.nrvReference !== '' ? parseFloat(form.nrvReference) : 0),
+      titration:      isInert ? 100 : (parseFloat(form.titration) || 100),
+      activeNutrient: isInert ? '' : form.activeNutrient.trim(),
+      maxLimitMg:     isInert ? 0 : (form.maxLimitMg !== '' ? parseFloat(form.maxLimitMg) : 0),
+      nrvReference:   isInert ? 0 : (form.nrvReference !== '' ? parseFloat(form.nrvReference) : 0),
       densityGml:     form.densityGml !== '' ? parseFloat(form.densityGml) : undefined,
       category,
     })
   }
 
   const refList = category === 'vitamina' ? VITAMINE_REF : MINERALI_REF
-  const showRefSelect = category === 'vitamina' || category === 'minerale'
+  const showRefSelect = (category === 'vitamina' || category === 'minerale')
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -205,7 +206,7 @@ export default function RawMaterialForm({ initial, onSubmit, onCancel }) {
       </div>
 
       {/* Prezzo + Purezza (always shown) + Titolazione + Nutriente Attivo (hidden for eccipiente) */}
-      {category === 'eccipiente' ? (
+      {(category === 'eccipiente' || category === 'lubrificante') ? (
         <>
           {/* Eccipiente info */}
           <div className="flex items-start gap-2.5 bg-galenic-elevated/60 border border-galenic-border/60 rounded-lg p-3 text-xs text-galenic-muted">
@@ -272,7 +273,7 @@ export default function RawMaterialForm({ initial, onSubmit, onCancel }) {
       )}
 
       {/* Limite Max + VNR (nascosti per eccipiente) */}
-      {category !== 'eccipiente' && (
+      {category !== 'eccipiente' && category !== 'lubrificante' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
             label="Limite Max (mg)"

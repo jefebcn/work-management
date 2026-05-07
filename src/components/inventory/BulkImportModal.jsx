@@ -16,7 +16,7 @@ const GALENIC_FIELDS = [
   { key: 'densityGml',     label: 'Densità (g/mL)',    required: false, type: 'number'   },
 ]
 
-const CATEGORY_VALUES = ['vitamina', 'minerale', 'botanical', 'eccipiente']
+const CATEGORY_VALUES = ['vitamina', 'minerale', 'botanical', 'eccipiente', 'lubrificante']
 
 const HEADER_KEYWORDS = {
   name:           ['nome', 'name', 'ingrediente', 'materia', 'ingredient', 'description', 'descrizione', 'raw material'],
@@ -56,7 +56,10 @@ function parseValue(raw, type) {
   }
   if (type === 'category') {
     const lower = String(raw).toLowerCase()
-    return CATEGORY_VALUES.find(c => lower.includes(c)) || ''
+    const direct = CATEGORY_VALUES.find(c => lower.includes(c))
+    if (direct) return direct
+    if (lower.includes('lubri') || lower.includes('stear') || lower.includes('antiader')) return 'lubrificante'
+    return ''
   }
   return String(raw).trim()
 }

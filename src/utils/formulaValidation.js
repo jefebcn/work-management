@@ -2,6 +2,7 @@
  * Per-formula-type validation and derived metrics.
  * Pure functions — no side effects.
  */
+import { isLubricantName } from './ingredientNorm.js'
 
 // Standard pharmaceutical hard capsule fill volumes (mL)
 export const CAPSULE_SIZES = [
@@ -70,9 +71,7 @@ export function validateCompressa(rows, rawMaterials) {
       activeMg += row.amountMg
     } else {
       excipientMg += row.amountMg
-      const n = rm.name.toLowerCase()
-      // Common tablet lubricants / glidants
-      if (n.includes('stear') || n.includes('silice') || n.includes('talco') || n.includes('aerosil')) {
+      if (rm.category === 'lubrificante' || isLubricantName(rm.name)) {
         lubricantMg += row.amountMg
       }
     }
@@ -96,9 +95,9 @@ export function validateCompressa(rows, rawMaterials) {
     if (lubricantPct === 0) {
       warnings.push({ type: 'NO_LUBRICANT', severity: 'caution',
         message: 'Nessun lubrificante rilevato — aggiungere Mg stearato allo 0.5–1% per evitare aderenza ai punzoni' })
-    } else if (lubricantPct > 2) {
+    } else if (lubricantPct > 1.5) {
       warnings.push({ type: 'EXCESS_LUBRICANT', severity: 'caution',
-        message: `Lubrificante al ${lubricantPct.toFixed(2)}% — potrebbe ridurre la durezza della compressa (limite consigliato <2%)` })
+        message: `Attenzione: concentrazione di lubrificante elevata (${lubricantPct.toFixed(2)}%). Possibile impatto sulla durezza o sul tempo di disgregazione.` })
     }
     if (excipientPct < 10) {
       warnings.push({ type: 'LOW_BINDER', severity: 'danger',

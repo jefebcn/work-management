@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { useApp } from '../../context/AppContext.jsx'
 import Button from '../ui/Button.jsx'
+import { normalizeName, suggestCategory } from '../../utils/ingredientNorm.js'
 
 // ── Column auto-detection keyword lists ────────────────────────────────────────
 const ING_KW  = ['ingrediente', 'ingredient', 'nome', 'name', 'materia', 'component', 'formula', 'descrizione', 'raw material']
@@ -12,10 +13,11 @@ const AMT_KW  = ['quantità', 'quantity', 'mg', 'dose', 'amount', 'peso', 'weigh
 const NOTE_KW = ['note', 'notes', 'comment', 'commento', 'osservazione', 'remark', 'descrizione']
 
 const CATEGORY_OPTS = [
-  { key: 'vitamina',   label: 'Vitamina' },
-  { key: 'minerale',   label: 'Minerale' },
-  { key: 'botanical',  label: 'Botanical / Funzionale' },
-  { key: 'eccipiente', label: 'Eccipiente' },
+  { key: 'vitamina',     label: 'Vitamina' },
+  { key: 'minerale',     label: 'Minerale' },
+  { key: 'botanical',    label: 'Botanical / Funzionale' },
+  { key: 'eccipiente',   label: 'Eccipiente' },
+  { key: 'lubrificante', label: 'Lubrificante / Antiaderente' },
 ]
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -30,14 +32,15 @@ function parseAmount(raw) {
 }
 
 function fuzzyMatch(name, rawMaterials) {
-  const lower = name.toLowerCase().trim()
-  if (!lower) return null
-  const exact = rawMaterials.find(rm => rm.name.toLowerCase() === lower)
+  const norm = normalizeName(name)
+  if (!norm) return null
+  const exact = rawMaterials.find(rm => normalizeName(rm.name) === norm)
   if (exact) return exact
-  // Partial match — return longest candidate (most specific)
-  const partials = rawMaterials.filter(rm =>
-    lower.includes(rm.name.toLowerCase()) || rm.name.toLowerCase().includes(lower),
-  )
+  // Partial match on normalized names — return longest candidate (most specific)
+  const partials = rawMaterials.filter(rm => {
+    const rmNorm = normalizeName(rm.name)
+    return norm.includes(rmNorm) || rmNorm.includes(norm)
+  })
   return partials.length === 0 ? null : partials.sort((a, b) => b.name.length - a.name.length)[0]
 }
 
@@ -94,7 +97,7 @@ export default function RecipeImportModal({ macrothemeId, onClose }) {
             rmId:        match?.id ?? null,
             showRemap:   false,
             showNewForm: false,
-            newDraft:    { ...EMPTY_DRAFT, name },
+            newDraft:    { ...EMPTY_DRAFT, name, category: suggestCategory(name) ?? 'eccipiente' },
           }
         })
 
