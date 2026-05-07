@@ -7,11 +7,11 @@ import Button from '../ui/Button.jsx'
 import { fromMg, toMg } from '../../utils/weightConversions.js'
 
 const FORMULA_TYPES = [
-  { value: 'Compresse', label: 'Compresse' },
-  { value: 'Capsule',   label: 'Capsule' },
-  { value: 'Polveri',   label: 'Polveri' },
-  { value: 'Liquidi',   label: 'Liquidi' },
-  { value: 'Sistemi Gommosi e Coated', label: 'Sistemi Gommosi e Coated' },
+  { value: 'Compresse',                  label: 'Compresse' },
+  { value: 'Capsule',                    label: 'Capsule' },
+  { value: 'Polveri',                    label: 'Polveri' },
+  { value: 'Liquidi',                    label: 'Liquidi' },
+  { value: 'Sistemi Gommosi e Coated',   label: 'Sistemi Gommosi e Coated' },
 ]
 
 const WEIGHT_UNITS = [
@@ -29,9 +29,14 @@ export default function FormulaHeader() {
 
   return (
     <div className="bg-galenic-surface border border-galenic-border rounded-xl p-5">
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-        {/* Formula name */}
-        <div className="md:col-span-2">
+      {/*
+        flex-wrap: fields wrap to next line instead of squeezing / overlapping.
+        Each field has an explicit min-width so it never collapses below readability.
+      */}
+      <div className="flex flex-wrap gap-4 items-end">
+
+        {/* Nome Formula — grows to absorb available width */}
+        <div className="grow min-w-[200px]">
           <Input
             label="Nome Formula"
             value={activeFormula.name}
@@ -40,27 +45,29 @@ export default function FormulaHeader() {
           />
         </div>
 
-        {/* Formula type — locked when coming from a commercial briefing */}
-        {activeFormula.briefingLocked?.type ? (
-          <div>
-            <div className="text-xs font-mono text-galenic-muted mb-1">Tipo di Formula</div>
-            <div className="flex items-center gap-2 px-3 py-2 bg-galenic-elevated/70 border border-galenic-border/60 rounded-lg">
-              <Lock size={11} className="text-galenic-muted/60 shrink-0" />
-              <span className="text-sm text-galenic-primary">{activeFormula.type}</span>
-              <span className="ml-auto text-xs font-mono text-galenic-muted/50">bloccato</span>
+        {/* Tipo Formula — fixed minimum, never wraps text inside */}
+        <div className="min-w-[170px]">
+          {activeFormula.briefingLocked?.type ? (
+            <div>
+              <div className="text-xs font-mono text-galenic-muted mb-1">Tipo di Formula</div>
+              <div className="flex items-center gap-2 px-3 py-2 bg-galenic-elevated/70 border border-galenic-border/60 rounded-lg">
+                <Lock size={11} className="text-galenic-muted/60 shrink-0" />
+                <span className="text-sm text-galenic-primary truncate">{activeFormula.type}</span>
+                <span className="ml-auto text-xs font-mono text-galenic-muted/50 shrink-0">bloccato</span>
+              </div>
             </div>
-          </div>
-        ) : (
-          <Select
-            label="Tipo di Formula"
-            options={FORMULA_TYPES}
-            value={activeFormula.type}
-            onChange={e => setFormulaField('type', e.target.value)}
-          />
-        )}
+          ) : (
+            <Select
+              label="Tipo di Formula"
+              options={FORMULA_TYPES}
+              value={activeFormula.type}
+              onChange={e => setFormulaField('type', e.target.value)}
+            />
+          )}
+        </div>
 
-        {/* Target weight */}
-        <div className="flex gap-2 items-end">
+        {/* Peso Target + Unit — kept as a rigid pair, never shrinks */}
+        <div className="flex gap-2 items-end shrink-0">
           <Input
             label="Peso Target"
             type="number"
@@ -70,7 +77,7 @@ export default function FormulaHeader() {
             onChange={e =>
               setTargetWeight(parseFloat(e.target.value) || 0, activeFormula.targetWeightUnit || 'mg')
             }
-            containerClassName="flex-1"
+            containerClassName="w-28"
           />
           <Select
             options={WEIGHT_UNITS}
@@ -84,7 +91,7 @@ export default function FormulaHeader() {
           />
         </div>
 
-        {/* Daily doses */}
+        {/* Dosi/die — fixed-width, enough for 4-digit numbers */}
         <Input
           label="Dosi/die"
           type="number"
@@ -93,7 +100,9 @@ export default function FormulaHeader() {
           value={activeFormula.dosiAlGiorno ?? 1}
           onChange={e => setFormulaField('dosiAlGiorno', Math.max(1, parseInt(e.target.value) || 1))}
           hint="N. dosi giornaliere"
+          containerClassName="w-24"
         />
+
       </div>
     </div>
   )
