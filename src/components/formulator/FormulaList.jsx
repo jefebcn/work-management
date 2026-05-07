@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import {
   Plus, Folder, FolderPlus, GitCompare, Trash2, FolderEdit, Layers,
-  ExternalLink, Copy, History, MoreHorizontal,
+  ExternalLink, Copy, History, MoreHorizontal, FileSpreadsheet,
 } from 'lucide-react'
+import RecipeImportModal from './RecipeImportModal.jsx'
 import { useApp } from '../../context/AppContext.jsx'
 import Button from '../ui/Button.jsx'
 import StatusBadge from '../ui/StatusBadge.jsx'
@@ -31,6 +32,7 @@ export default function FormulaList() {
   const [compareModal,     setCompareModal]     = useState(null)
   const [macroModal,       setMacroModal]       = useState(null)
   const [historyGroup,     setHistoryGroup]     = useState(null)
+  const [showRecipeImport, setShowRecipeImport] = useState(false)
 
   // Keep selectedMacroId valid when macrothemes array changes (e.g. after cloud sync)
   useEffect(() => {
@@ -211,6 +213,12 @@ export default function FormulaList() {
                 Confronta 2/2
               </Button>
             )}
+            {activeMacroId === 'macro-auto-caramelle' && (
+              <Button variant="ghost" size="sm" onClick={() => setShowRecipeImport(true)}>
+                <FileSpreadsheet size={13} className="mr-1.5" />
+                Importa Ricetta
+              </Button>
+            )}
             <Button variant="primary" onClick={() => newFormula({ macrothemeId: activeMacroId })}>
               <Plus size={14} className="mr-1.5" />
               Nuova Formula
@@ -248,6 +256,14 @@ export default function FormulaList() {
           </div>
         )}
       </div>
+
+      {/* Recipe import modal (Sistemi Gommosi e Coated only) */}
+      {showRecipeImport && (
+        <RecipeImportModal
+          macrothemeId={activeMacroId}
+          onClose={() => setShowRecipeImport(false)}
+        />
+      )}
 
       {/* Modali */}
       <MacrothemeForm

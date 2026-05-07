@@ -520,6 +520,57 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
     })
   }
 
+  // Creates a new formula pre-populated with resolved ingredients from Excel import.
+  // resolvedIngredients = [{ rawMaterialId, amountMg }]
+  function importRecipeFormula({ name, macrothemeId, targetWeightMg, dosiAlGiorno, resolvedIngredients }) {
+    const now = new Date().toISOString()
+    const id  = generateId('frm')
+    const formula = {
+      id,
+      name:             (name || 'Ricetta Importata').trim(),
+      type:             'Sistemi Gommosi e Coated',
+      targetWeightMg:   targetWeightMg || 500,
+      targetWeightUnit: 'mg',
+      ingredients: (resolvedIngredients || []).map(ri => ({
+        rowId:             generateId('row'),
+        rawMaterialId:     ri.rawMaterialId,
+        amountMg:          ri.amountMg,
+        isFiller:          false,
+        antiCakingPercent: 0,
+        coatingLayerId:    null,
+      })),
+      packagingId:        null,
+      qtyPerPackMg:       0,
+      qtyPerPackUnit:     'g',
+      dosiAlGiorno:       dosiAlGiorno || 1,
+      pH:                 null,
+      brix:               null,
+      status:             'draft',
+      batchSize:          1000,
+      markupPercent:      0,
+      productGroupId:     id,
+      versionLabel:       'v1.0',
+      versionNote:        '',
+      macrothemeId:       macrothemeId || suggestMacrothemeId('Sistemi Gommosi e Coated', macrothemes),
+      clientName:         '',
+      targetPrice:        null,
+      format:             '',
+      packagingRequested: '',
+      briefingNotes:      '',
+      briefingCode:       '',
+      selectedClaims:     [],
+      softCoating:        { ...DEFAULT_SOFT_COATING, enabled: true },
+      version:            1,
+      parentId:           null,
+      createdAt:          now,
+      updatedAt:          now,
+    }
+    setFormulas(prev => [...prev, formula])
+    setActiveFormula(formula)
+    if (user) dbUpsert('formulas', user.id, formula)
+    return formula
+  }
+
   function removeCoatingLayer(layerId) {
     setActiveFormula(prev => {
       if (!prev) return prev
@@ -580,5 +631,6 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
     updateCoatingLayer,
     setIngredientCoatingLayer,
     importFastLabPrototype,
+    importRecipeFormula,
   }
 }
