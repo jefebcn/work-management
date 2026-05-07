@@ -33,7 +33,7 @@ export default function FormulaHeader() {
         flex-wrap: fields wrap to next line instead of squeezing / overlapping.
         Each field has an explicit min-width so it never collapses below readability.
       */}
-      <div className="flex flex-wrap gap-4 items-end">
+      <div className="flex flex-wrap gap-4 items-start">
 
         {/* Nome Formula — grows to absorb available width */}
         <div className="grow min-w-[200px]">

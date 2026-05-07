@@ -27,7 +27,7 @@ export default function Select({
         onChange={onChange}
         className={[
           'bg-galenic-elevated border text-galenic-primary font-mono text-sm',
-          'px-3 py-2 outline-none transition-colors cursor-pointer',
+          'px-3 py-2 rounded-lg outline-none transition-colors cursor-pointer',
           'appearance-none',
           error
             ? 'border-galenic-danger focus:border-galenic-danger'
