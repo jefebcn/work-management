@@ -1,15 +1,18 @@
 import React, { useState } from 'react'
+import { Upload } from 'lucide-react'
 import { useApp } from '../../context/AppContext.jsx'
 import Modal from '../ui/Modal.jsx'
 import Button from '../ui/Button.jsx'
 import RawMaterialsTable from './RawMaterialsTable.jsx'
 import RawMaterialForm from './RawMaterialForm.jsx'
+import BulkImportModal from './BulkImportModal.jsx'
 
 export default function RawMaterialsPage() {
   const { rawMaterials, addRawMaterial, updateRawMaterial, deleteRawMaterial } = useApp()
   const [modalOpen, setModalOpen] = useState(false)
   const [editingMaterial, setEditingMaterial] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [showBulkImport, setShowBulkImport] = useState(false)
 
   // Filter raw materials by search query
   const q = searchQuery.toLowerCase().trim()
@@ -87,6 +90,10 @@ export default function RawMaterialsPage() {
             )}
           </div>
 
+          <Button variant="ghost" size="sm" onClick={() => setShowBulkImport(true)}>
+            <Upload size={13} className="mr-1.5" />
+            Importa Excel/CSV
+          </Button>
           <Button variant="primary" size="sm" onClick={handleAdd}>
             + Aggiungi Materia Prima
           </Button>
@@ -108,6 +115,9 @@ export default function RawMaterialsPage() {
           Nessun risultato per "{searchQuery}"
         </p>
       )}
+
+      {/* Bulk import modal */}
+      {showBulkImport && <BulkImportModal onClose={() => setShowBulkImport(false)} />}
 
       {/* Add / Edit modal */}
       <Modal
