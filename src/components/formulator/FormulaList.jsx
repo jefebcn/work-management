@@ -1,14 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import {
-  Plus, Folder, FolderPlus, GitCompare, Trash2, FolderEdit, Layers,
-  ExternalLink, Copy, History, MoreHorizontal, FileSpreadsheet,
+  Plus, GitCompare, Trash2, Layers,
+  ExternalLink, Copy, History, FileSpreadsheet,
 } from 'lucide-react'
 import RecipeImportModal from './RecipeImportModal.jsx'
 import { useApp } from '../../context/AppContext.jsx'
 import Button from '../ui/Button.jsx'
 import StatusBadge from '../ui/StatusBadge.jsx'
 import { fromMg } from '../../utils/weightConversions.js'
-import MacrothemeForm from './MacrothemeForm.jsx'
 import CompareView from './CompareView.jsx'
 import VersionHistoryDrawer from './VersionHistoryDrawer.jsx'
 
@@ -20,27 +19,18 @@ const TYPE_DOT = {
   'Sistemi Gommosi e Coated': 'bg-orange-400',
 }
 
-export default function FormulaList() {
+export default function FormulaList({ selectedMacroId }) {
   const {
-    formulas, openFormula, deleteFormula, newFormula, saveFormula,
-    macrothemes, addMacrotheme, updateMacrotheme, deleteMacrotheme,
-    setMacrothemeForFormula,
+    formulas, openFormula, deleteFormula, newFormula, saveFormula, macrothemes,
   } = useApp()
 
-  const [selectedMacroId,  setSelectedMacroId]  = useState(() => macrothemes[0]?.id ?? null)
   const [compareSelection, setCompareSelection] = useState([])
   const [compareModal,     setCompareModal]     = useState(null)
-  const [macroModal,       setMacroModal]       = useState(null)
   const [historyGroup,     setHistoryGroup]     = useState(null)
   const [showRecipeImport, setShowRecipeImport] = useState(false)
 
-  // Keep selectedMacroId valid when macrothemes array changes (e.g. after cloud sync)
-  useEffect(() => {
-    if (!macrothemes.length) return
-    if (!selectedMacroId || !macrothemes.find(m => m.id === selectedMacroId)) {
-      setSelectedMacroId(macrothemes[0].id)
-    }
-  }, [macrothemes])
+  // Reset compare selection when the active macro changes
+  useEffect(() => { setCompareSelection([]) }, [selectedMacroId])
 
   const activeMacro   = macrothemes.find(m => m.id === selectedMacroId) ?? macrothemes[0]
   const activeMacroId = activeMacro?.id ?? null
@@ -105,98 +95,9 @@ export default function FormulaList() {
     saveFormula(dup)
   }
 
-  function handleCreateMacro(name) {
-    const created = addMacrotheme(name)
-    if (created) setSelectedMacroId(created.id)
-    setMacroModal(null)
-  }
-
-  function handleRenameMacro(name) {
-    if (macroModal?.id) updateMacrotheme(macroModal.id, { name })
-    setMacroModal(null)
-  }
-
-  function handleDeleteMacro(id) {
-    if (!window.confirm('Eliminare questo macrotema? Le formule contenute saranno spostate in "Compresse".')) return
-    const fallback = macrothemes.find(m => m.kind === 'auto')
-    if (fallback) {
-      formulas.filter(f => f.macrothemeId === id).forEach(f =>
-        setMacrothemeForFormula(f.id, fallback.id),
-      )
-    }
-    deleteMacrotheme(id)
-    if (selectedMacroId === id) setSelectedMacroId(fallback?.id ?? null)
-  }
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-5">
-
-      {/* ── Sinistra: macrotemi ────────────────────────────────────────── */}
-      <aside className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold text-galenic-muted uppercase tracking-wider">
-            Macrotemi
-          </h3>
-          <button
-            onClick={() => setMacroModal({ mode: 'create' })}
-            title="Nuovo macrotema"
-            className="p-1 rounded text-galenic-muted hover:text-galenic-accent hover:bg-galenic-elevated transition-all"
-          >
-            <FolderPlus size={13} />
-          </button>
-        </div>
-
-        <div className="space-y-0.5 bg-galenic-surface border border-galenic-border rounded-xl p-2 shadow-sm">
-          {macrothemes.map(m => {
-            const isActive = m.id === activeMacroId
-            const count = countsByMacro[m.id] || 0
-            return (
-              <div key={m.id} className="group relative">
-                <button
-                  onClick={() => { setSelectedMacroId(m.id); setCompareSelection([]) }}
-                  className={[
-                    'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-left transition-all',
-                    isActive
-                      ? 'bg-galenic-accent/12 text-galenic-accent font-medium'
-                      : 'text-galenic-muted hover:text-galenic-primary hover:bg-galenic-elevated/60',
-                  ].join(' ')}
-                >
-                  <Folder size={12} className={isActive ? 'text-galenic-accent' : 'opacity-60'} />
-                  <span className="text-xs truncate flex-1">{m.name}</span>
-                  <span className={[
-                    'text-xs font-mono tabular-nums px-1.5 rounded',
-                    isActive ? 'text-galenic-accent' : 'text-galenic-muted/60',
-                  ].join(' ')}>
-                    {count}
-                  </span>
-                </button>
-                {m.kind === 'custom' && (
-                  <div className="absolute right-8 top-1/2 -translate-y-1/2 hidden group-hover:flex gap-0.5 bg-galenic-surface/95 backdrop-blur rounded">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setMacroModal({ mode: 'rename', initial: m.name, id: m.id }) }}
-                      title="Rinomina"
-                      className="p-1 rounded text-galenic-muted hover:text-galenic-accent"
-                    >
-                      <FolderEdit size={10} />
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDeleteMacro(m.id) }}
-                      title="Elimina"
-                      className="p-1 rounded text-galenic-muted hover:text-galenic-danger"
-                    >
-                      <Trash2 size={10} />
-                    </button>
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      </aside>
-
-      {/* ── Destra: griglia card prodotti ──────────────────────────────── */}
-      <div>
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+    <div>
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <div>
             <h2 className="text-base font-semibold text-galenic-primary">
               {activeMacro?.name || 'Tutti i progetti'}
@@ -255,7 +156,6 @@ export default function FormulaList() {
             ))}
           </div>
         )}
-      </div>
 
       {/* Recipe import modal (Sistemi Gommosi e Coated only) */}
       {showRecipeImport && (
@@ -265,13 +165,6 @@ export default function FormulaList() {
         />
       )}
 
-      {/* Modali */}
-      <MacrothemeForm
-        open={!!macroModal}
-        initialName={macroModal?.initial || ''}
-        onCancel={() => setMacroModal(null)}
-        onConfirm={macroModal?.mode === 'create' ? handleCreateMacro : handleRenameMacro}
-      />
       {compareModal && (
         <CompareView
           formulaA={compareModal.a}

@@ -96,8 +96,8 @@ export default function FormulaBuilder() {
 
   return (
     <div className="space-y-4">
-      {/* Top action bar */}
-      <div className="flex items-start sm:items-center justify-between flex-wrap gap-2">
+      {/* Sticky action bar */}
+      <div className="sticky top-0 z-20 flex items-center justify-between flex-wrap gap-2 px-4 py-2.5 -mx-4 bg-galenic-base/95 backdrop-blur-sm border-b border-galenic-border/50 shadow-sm">
         <div className="flex items-center gap-3 min-w-0">
           <Button variant="ghost" size="sm" onClick={resetActiveFormula}>
             ← Torna alla Lista

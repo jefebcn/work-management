@@ -25,17 +25,15 @@ export default function FormulaHeader() {
 
   if (!activeFormula) return null
 
-  const displayWeight = fromMg(activeFormula.targetWeightMg, activeFormula.targetWeightUnit || 'mg')
+  const unit          = activeFormula.targetWeightUnit || 'mg'
+  const displayWeight = fromMg(activeFormula.targetWeightMg, unit)
+  const dosiAlGiorno  = activeFormula.dosiAlGiorno || 1
+  const totalDose     = fromMg(activeFormula.targetWeightMg * dosiAlGiorno, unit)
 
   return (
-    <div className="bg-galenic-surface border border-galenic-border rounded-xl p-5">
-      {/*
-        flex-wrap: fields wrap to next line instead of squeezing / overlapping.
-        Each field has an explicit min-width so it never collapses below readability.
-      */}
-      <div className="flex flex-wrap gap-4 items-start">
-
-        {/* Nome Formula — grows to absorb available width */}
+    <div className="bg-galenic-surface border border-galenic-border rounded-xl p-4">
+      {/* Row 1: Nome + Tipo — nome grows, tipo has fixed min-width */}
+      <div className="flex flex-wrap gap-4 items-start mb-4">
         <div className="grow min-w-[200px]">
           <Input
             label="Nome Formula"
@@ -44,8 +42,6 @@ export default function FormulaHeader() {
             placeholder="es. Vitamina C Effervescente"
           />
         </div>
-
-        {/* Tipo Formula — fixed minimum, never wraps text inside */}
         <div className="min-w-[170px]">
           {activeFormula.briefingLocked?.type ? (
             <div>
@@ -65,8 +61,11 @@ export default function FormulaHeader() {
             />
           )}
         </div>
+      </div>
 
-        {/* Peso Target + Unit — kept as a rigid pair, never shrinks */}
+      {/* Row 2: Peso Target + unit + Dosi/die + Dose Totale — wrap as group, never squeeze */}
+      <div className="flex flex-wrap gap-3 items-end">
+        {/* Peso Target + unit: rigid pair */}
         <div className="flex gap-2 items-end shrink-0">
           <Input
             label="Peso Target"
@@ -75,34 +74,42 @@ export default function FormulaHeader() {
             min="0"
             value={displayWeight}
             onChange={e =>
-              setTargetWeight(parseFloat(e.target.value) || 0, activeFormula.targetWeightUnit || 'mg')
+              setTargetWeight(parseFloat(e.target.value) || 0, unit)
             }
             containerClassName="w-28"
           />
           <Select
             options={WEIGHT_UNITS}
-            value={activeFormula.targetWeightUnit || 'mg'}
+            value={unit}
             onChange={e => {
               const newUnit = e.target.value
-              const currentDisplay = fromMg(activeFormula.targetWeightMg, activeFormula.targetWeightUnit || 'mg')
-              setTargetWeight(currentDisplay, newUnit)
+              setTargetWeight(fromMg(activeFormula.targetWeightMg, unit), newUnit)
             }}
             containerClassName="w-20"
           />
         </div>
 
-        {/* Dosi/die — fixed-width, enough for 4-digit numbers */}
+        {/* Dosi/die */}
         <Input
           label="Dosi/die"
           type="number"
           step="1"
           min="1"
-          value={activeFormula.dosiAlGiorno ?? 1}
+          value={dosiAlGiorno}
           onChange={e => setFormulaField('dosiAlGiorno', Math.max(1, parseInt(e.target.value) || 1))}
-          hint="N. dosi giornaliere"
           containerClassName="w-24"
         />
 
+        {/* Dose Totale/die — read-only computed */}
+        <div className="shrink-0">
+          <div className="text-xs font-mono text-galenic-muted mb-1">Dose Totale/die</div>
+          <div className="flex items-center h-9 px-3 bg-galenic-elevated/50 border border-galenic-border/40 rounded-lg min-w-[110px]">
+            <span className="text-sm font-mono tabular-nums text-galenic-primary">
+              {totalDose.toFixed(unit === 'mg' ? 0 : 3)}
+            </span>
+            <span className="text-xs font-mono text-galenic-muted/60 ml-1.5">{unit}/die</span>
+          </div>
+        </div>
       </div>
     </div>
   )
