@@ -101,6 +101,22 @@ export default function IngredientRow({ computedRow, rowIndex = 0, unitMode = 'd
     setter(fmtDec(value))  // normalize on blur
   }
 
+  // Enter key: jump focus to the same qty field in the next row
+  function handleQtyKeyDown(e) {
+    if (e.key !== 'Enter') return
+    e.preventDefault()
+    const all = Array.from(document.querySelectorAll('[data-row-qty]'))
+    const idx = all.indexOf(e.currentTarget)
+    if (idx >= 0 && idx < all.length - 1) {
+      const next = all[idx + 1]
+      next.focus()
+      next.select()
+    } else {
+      // Last row — focus the "Aggiungi" button so the user can add another ingredient
+      document.querySelector('[data-add-ingredient]')?.focus()
+    }
+  }
+
   function onQtyDoseChange(e) {
     setQDoseStr(e.target.value)
     setIngredientAmount(computedRow.rowId, toMg(parseDec(e.target.value), unit))
@@ -172,10 +188,12 @@ export default function IngredientRow({ computedRow, rowIndex = 0, unitMode = 'd
           <div className={unitMode === 'die' ? 'opacity-50 hidden sm:block' : ''}>
             <input
               type="text" inputMode="decimal"
+              data-row-qty
               value={qDoseStr}
               onChange={!isReadOnly ? onQtyDoseChange : undefined}
               onFocus={!isReadOnly ? () => { focused.current = 'qDose' } : undefined}
               onBlur={!isReadOnly ? () => commit('qDose', qtyPerDose, setQDoseStr) : undefined}
+              onKeyDown={!isReadOnly ? handleQtyKeyDown : undefined}
               readOnly={isReadOnly}
               className={cellInputCls('qDose')}
             />

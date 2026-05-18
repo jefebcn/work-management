@@ -1,10 +1,24 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { X, Search, Plus, Check } from 'lucide-react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
+import { X, Search, Plus, Check, TrendingUp } from 'lucide-react'
 import { useApp } from '../../context/AppContext.jsx'
 
+// Sort tier: 0=exact, 1=name-starts, 2=nutrient-starts, 3=name-contains, 4=nutrient-contains, 5=supplier
+function matchTier(rm, lower) {
+  const name     = rm.name.toLowerCase()
+  const nutrient = (rm.activeNutrient || '').toLowerCase()
+  const supplier = (rm.supplier || '').toLowerCase()
+  if (name === lower)              return 0
+  if (name.startsWith(lower))      return 1
+  if (nutrient.startsWith(lower))  return 2
+  if (name.includes(lower))        return 3
+  if (nutrient.includes(lower))    return 4
+  if (supplier.includes(lower))    return 5
+  return 99
+}
+
 export default function IngredientDrawer({ open, onClose }) {
-  const { rawMaterials, activeFormula, addIngredient } = useApp()
-  const [query, setQuery]       = useState('')
+  const { rawMaterials, activeFormula, addIngredient, formulas } = useApp()
+  const [query, setQuery]         = useState('')
   const [justAdded, setJustAdded] = useState(new Set())
   const inputRef = useRef(null)
 
@@ -23,17 +37,39 @@ export default function IngredientDrawer({ open, onClose }) {
     return () => window.removeEventListener('keydown', handler)
   }, [open, onClose])
 
-  const usedIds  = new Set((activeFormula?.ingredients || []).map(i => i.rawMaterialId))
+  // Frequency map: how many formulas use each raw material
+  const freqMap = useMemo(() => {
+    const freq = {}
+    formulas.forEach(f => {
+      ;(f.ingredients || []).forEach(i => {
+        freq[i.rawMaterialId] = (freq[i.rawMaterialId] || 0) + 1
+      })
+    })
+    return freq
+  }, [formulas])
+
+  const usedIds   = new Set((activeFormula?.ingredients || []).map(i => i.rawMaterialId))
   const available = rawMaterials.filter(rm => !usedIds.has(rm.id))
 
   const q = query.toLowerCase().trim()
-  const filtered = q
-    ? rawMaterials.filter(rm =>
-        rm.name.toLowerCase().includes(q) ||
-        (rm.activeNutrient && rm.activeNutrient.toLowerCase().includes(q)) ||
-        (rm.supplier && rm.supplier.toLowerCase().includes(q))
-      )
-    : available
+  const filtered = useMemo(() => {
+    const pool = q ? rawMaterials : available
+    const candidates = q
+      ? pool.filter(rm => matchTier(rm, q) < 99)
+      : pool
+    return [...candidates].sort((a, b) => {
+      if (q) {
+        const ta = matchTier(a, q)
+        const tb = matchTier(b, q)
+        if (ta !== tb) return ta - tb
+      }
+      // Within same tier (or no query): frequency descending, then alpha
+      const fa = freqMap[a.id] || 0
+      const fb = freqMap[b.id] || 0
+      if (fb !== fa) return fb - fa
+      return a.name.localeCompare(b.name, 'it')
+    })
+  }, [q, rawMaterials, available, freqMap])
 
   function handleAdd(id) {
     addIngredient(id)
@@ -103,7 +139,7 @@ export default function IngredientDrawer({ open, onClose }) {
             )}
           </div>
           <div className="mt-1.5 text-xs font-mono text-galenic-muted/50">
-            {filtered.length} risultati
+            {filtered.length} risultati{q ? ' · per rilevanza' : ' · per frequenza d\'uso'}
           </div>
         </div>
 
@@ -141,6 +177,12 @@ export default function IngredientDrawer({ open, onClose }) {
                         {rm.titration > 0 && rm.titration < 100 && (
                           <span className="text-xs font-mono px-1.5 py-px rounded bg-galenic-accent/10 text-galenic-accent border border-galenic-accent/20 shrink-0">
                             {rm.titration}%
+                          </span>
+                        )}
+                        {!q && (freqMap[rm.id] || 0) >= 3 && (
+                          <span className="inline-flex items-center gap-0.5 text-xs font-mono px-1.5 py-px rounded bg-galenic-ok/10 text-galenic-ok border border-galenic-ok/20 shrink-0" title={`Usato in ${freqMap[rm.id]} formule`}>
+                            <TrendingUp size={9} />
+                            {freqMap[rm.id]}×
                           </span>
                         )}
                       </div>

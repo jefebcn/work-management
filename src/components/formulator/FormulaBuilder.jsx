@@ -204,7 +204,7 @@ export default function FormulaBuilder() {
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-3 text-xs font-mono">
+                    <div className="flex items-center gap-3 text-xs font-mono flex-wrap">
                       <span className="text-galenic-muted">
                         Totale:{' '}
                         <span className={`font-semibold ${isOverweight ? 'text-galenic-danger' : 'text-galenic-primary'}`}>
@@ -212,8 +212,18 @@ export default function FormulaBuilder() {
                           {totalPercent.toFixed(2)}%
                         </span>
                       </span>
-                      <span className="text-galenic-muted hidden sm:inline">
+                      <span
+                        className={`hidden sm:inline tabular-nums ${isOverweight ? 'text-galenic-danger font-medium' : 'text-galenic-muted'}`}
+                        title={isOverweight
+                          ? `Sbilancio: +${(totalWeightMg - activeFormula.targetWeightMg).toFixed(1)} mg rispetto al target di ${activeFormula.targetWeightMg} mg`
+                          : undefined}
+                      >
                         {totalWeightMg.toFixed(1)} / {activeFormula.targetWeightMg} mg
+                        {isOverweight && (
+                          <span className="ml-1.5 px-1.5 py-0.5 rounded bg-galenic-danger/15 text-galenic-danger text-xs font-semibold">
+                            +{(totalWeightMg - activeFormula.targetWeightMg).toFixed(1)} mg
+                          </span>
+                        )}
                       </span>
                       {isBalanced && (
                         <span className="text-galenic-ok flex items-center gap-1">
@@ -224,6 +234,7 @@ export default function FormulaBuilder() {
 
                     {/* Drawer trigger */}
                     <button
+                      data-add-ingredient
                       onClick={() => setDrawerOpen(true)}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-galenic-accent text-white text-xs font-mono font-medium hover:opacity-90 active:scale-95 transition-all shrink-0"
                     >
