@@ -192,7 +192,100 @@ function dataNutrizionalePublico(rows, rmMap) {
   return { data: [header, ...body], cols: [24, 20, 10, 22] }
 }
 
-// ─── Main export function ─────────────────────────────────────────────────────
+function dataFogliodiPesata(rows, rmMap, formula) {
+  const sorted     = [...rows].sort((a, b) => b.amountMg - a.amountMg)
+  const validRows  = sorted.filter(r => rmMap[r.rawMaterialId])
+
+  // Fixed rows before data (1-based Excel rows):
+  //  R1  — Title (merged A:D)
+  //  R2  — "BATCH TARGET (g)" label in A2 | 1000 in B2  ← master interactive cell
+  //  R3  — Formula meta info (merged A:D)
+  //  R4  — spacer
+  //  R5  — Column headers
+  //  R6+ — Ingredient rows with =C_n/100*$B$2 formulas
+  const DATA_START = 6
+
+  const bodyRows = validRows.map((row, i) => {
+    const rm       = rmMap[row.rawMaterialId]
+    const excelRow = DATA_START + i
+    const preCalc  = row.percentOfTotal / 100 * 1000
+    return [
+      rm.name,
+      row.amountMg,
+      row.percentOfTotal,
+      { t: 'n', f: `C${excelRow}/100*$B$2`, v: preCalc },
+    ]
+  })
+
+  const lastDataRow  = DATA_START + bodyRows.length - 1
+  const totalRow     = lastDataRow + 2  // one blank between data and total
+  const totalMg      = validRows.reduce((s, r) => s + r.amountMg, 0)
+  const totalPct     = validRows.reduce((s, r) => s + r.percentOfTotal, 0)
+  const totalPreCalc = totalPct / 100 * 1000
+  const dateStr      = new Date().toLocaleDateString('it-IT')
+
+  const data = [
+    // R1 — title
+    [`FOGLIO DI PESATA — ${formula.name}`, '', '', ''],
+    // R2 — interactive batch target
+    ['BATCH TARGET (g)', 1000, '', ''],
+    // R3 — meta
+    [`${formula.type}  ·  Dose: ${formula.targetWeightMg} mg  ·  Dosi/die: ${formula.dosiAlGiorno || 1}  ·  Data: ${dateStr}`, '', '', ''],
+    // R4 — spacer
+    ['', '', '', ''],
+    // R5 — headers
+    ['MATERIA PRIMA', 'mg/dose', '% PESO', 'PESO DA PESARE (g)'],
+    // R6+ — ingredient rows
+    ...bodyRows,
+    // blank separator before total
+    ['', '', '', ''],
+    // total row
+    [
+      'TOTALE',
+      totalMg,
+      totalPct,
+      { t: 'n', f: `SUM(D${DATA_START}:D${lastDataRow})`, v: totalPreCalc },
+    ],
+    // footer spacers
+    ['', '', '', ''],
+    ['', '', '', ''],
+    ['', '', '', ''],
+    // signature row
+    ['Firma Operatore:', '', '', 'Data / Ora:'],
+    ['', '', '', ''],
+    ['_____________________________', '', '', '______________'],
+    ['', '', '', ''],
+    // notes
+    ['Note di Produzione:', '', '', ''],
+    ['', '', '', ''],
+    ['____________________________________________', '', '', ''],
+    ['____________________________________________', '', '', ''],
+  ]
+
+  // R index (0-based) of the notes lines — used for merges
+  const notesLabelR = data.length - 5
+  const notesLine1R = data.length - 2
+  const notesLine2R = data.length - 1
+
+  const merges = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } },            // R1: title
+    { s: { r: 2, c: 0 }, e: { r: 2, c: 3 } },            // R3: meta
+    { s: { r: notesLabelR, c: 0 }, e: { r: notesLabelR, c: 3 } },
+    { s: { r: notesLine1R, c: 0 }, e: { r: notesLine1R, c: 3 } },
+    { s: { r: notesLine2R, c: 0 }, e: { r: notesLine2R, c: 3 } },
+  ]
+
+  // Row heights (points): title tall, header row tall, data rows normal
+  const rowHeights = {}
+  rowHeights[0] = 28   // title
+  rowHeights[1] = 22   // batch target
+  rowHeights[4] = 20   // column headers
+  for (let i = 0; i < bodyRows.length; i++) rowHeights[DATA_START - 1 + i] = 18
+  rowHeights[totalRow - 1] = 18  // total
+
+  return { data, cols: [34, 14, 12, 22], merges, rowHeights }
+}
+
 
 /**
  * Generate and trigger download of formula as .xlsx
@@ -216,6 +309,22 @@ export async function exportFormulaToExcel(formula, computed, rawMaterials, pack
     return ws
   }
 
+  function makeLabSheet({ data, cols, merges, rowHeights }) {
+    const ws = XLSX.utils.aoa_to_sheet(data)
+    ws['!cols'] = cols.map(w => ({ wch: w }))
+    if (merges) ws['!merges'] = merges
+    if (rowHeights) {
+      ws['!rows'] = []
+      Object.entries(rowHeights).forEach(([r, hpt]) => {
+        ws['!rows'][Number(r)] = { hpt }
+      })
+    }
+    // A4 portrait, fit to one page wide
+    ws['!pageSetup'] = { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+    ws['!pageMargins'] = { top: 0.98, bottom: 0.98, left: 0.75, right: 0.75, header: 0.3, footer: 0.3 }
+    return ws
+  }
+
   const wb = XLSX.utils.book_new()
 
   XLSX.utils.book_append_sheet(wb, makeSheet(dataProdotto(formula, mode)), 'Prodotto')
@@ -224,6 +333,7 @@ export async function exportFormulaToExcel(formula, computed, rawMaterials, pack
     XLSX.utils.book_append_sheet(wb, makeSheet(dataIngredientiCompleto(computed.rows, rmMap)), 'Ingredienti')
     XLSX.utils.book_append_sheet(wb, makeSheet(dataProfiloNutrizionale(computed.rows, rmMap)), 'Profilo Nutrizionale')
     XLSX.utils.book_append_sheet(wb, makeSheet(dataCosti(computed.rows, rmMap, computed, formula)), 'Analisi Costi')
+    XLSX.utils.book_append_sheet(wb, makeLabSheet(dataFogliodiPesata(computed.rows, rmMap, formula)), 'Foglio di Pesata LAB')
   } else {
     XLSX.utils.book_append_sheet(wb, makeSheet(dataComposizioneAnonima(computed.rows, rmMap)), 'Composizione')
     const nutResult = dataNutrizionalePublico(computed.rows, rmMap)

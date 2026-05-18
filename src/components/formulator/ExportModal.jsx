@@ -132,6 +132,7 @@ export default function ExportModal({ isOpen, onClose }) {
               <SheetRow label="Ingredienti" desc="Tutte le materie prime con mg, %, purezza, titolo, fornitore" sensitive />
               <SheetRow label="Profilo Nutrizionale" desc="Apporto/die, VNR%, limiti di legge" />
               <SheetRow label="Analisi Costi" desc="Costo per materia prima, costo massa/kg, costo unità finale" sensitive />
+              <SheetRow label="Foglio di Pesata LAB" desc="Cella B2 batch target interattiva (default 1 kg) — colonna D con formule =C/100×$B$2 per aggiornamento dinamico" />
             </>
           ) : (
             <>
