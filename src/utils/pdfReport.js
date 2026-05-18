@@ -65,8 +65,7 @@ export function generateLabReport(formula, computed, rawMaterials) {
   const ingredientRows = sortedRows.map((r, i) => {
     const rm = rmMap[r.rawMaterialId]
     if (!rm) return ''
-    const totalG  = (r.amountMg * batchSize) / 1000
-    const totalKg = totalG / 1000
+    const gPerKg  = r.percentOfTotal > 0 ? (r.percentOfTotal * 10).toFixed(3) : '0.000'
     const flagged = r.exceedsMaxLimit ? ' style="background:#fef2f2"' : ''
     return `
       <tr${flagged}>
@@ -75,6 +74,7 @@ export function generateLabReport(formula, computed, rawMaterials) {
         <td class="muted">${esc(rm.supplier || '—')}</td>
         <td class="num">${r.amountMg.toFixed(3)}</td>
         <td class="num">${r.percentOfTotal.toFixed(2)}%</td>
+        <td class="num prod-col"><strong>${gPerKg}</strong></td>
         <td class="muted">${esc(rm.activeNutrient || '—')}</td>
         <td class="num">${rm.activeNutrient ? r.realNutrientContribution.toFixed(4) + ' mg' : '—'}</td>
       </tr>`
@@ -143,6 +143,7 @@ export function generateLabReport(formula, computed, rawMaterials) {
   .eco-card .val { font-size: 15px; font-weight: bold; color: #0f172a; margin-top: 2px; }
   .eco-card .lbl { font-size: 9px; text-transform: uppercase; letter-spacing: .06em; color: #64748b; }
   .ok { color: #059669; }
+  .prod-col { background: #f1f5f9; font-weight: bold; color: #0f172a; }
   footer { margin-top: 30px; border-top: 1px solid #e2e8f0;
            padding-top: 8px; font-size: 9px; color: #94a3b8; }
   @media print {
@@ -150,6 +151,7 @@ export function generateLabReport(formula, computed, rawMaterials) {
     .no-print { display: none; }
     h2 { break-before: avoid; }
     table { break-inside: avoid; }
+    .prod-col { background: #e2e8f0 !important; font-weight: bold; font-size: 12px; }
   }
 </style>
 </head>
@@ -182,6 +184,7 @@ export function generateLabReport(formula, computed, rawMaterials) {
       <th>Fornitore</th>
       <th class="num">mg/dose</th>
       <th class="num">% peso</th>
+      <th class="num prod-col">g / 1 kg</th>
       <th>Nutriente Attivo</th>
       <th class="num">Apporto/dose</th>
     </tr>
@@ -192,6 +195,7 @@ export function generateLabReport(formula, computed, rawMaterials) {
       <td colspan="3">TOTALE</td>
       <td class="num">${computed.totalWeightMg.toFixed(3)}</td>
       <td class="num">${computed.totalPercent.toFixed(2)}%</td>
+      <td class="num prod-col"><strong>${(computed.totalPercent * 10).toFixed(3)}</strong></td>
       <td colspan="2"></td>
     </tr>
   </tfoot>

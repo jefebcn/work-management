@@ -241,6 +241,7 @@ export default function FormulaBuilder() {
                           <th className="px-3 sm:px-4 py-3 text-left text-xs text-galenic-muted uppercase tracking-wider font-medium whitespace-nowrap">Materia Prima</th>
                           <th className="px-3 sm:px-4 py-3 text-left text-xs text-galenic-muted uppercase tracking-wider font-medium whitespace-nowrap">Quantità</th>
                           <th className="hidden sm:table-cell px-4 py-3 text-center text-xs text-galenic-muted uppercase tracking-wider font-medium whitespace-nowrap">% Peso</th>
+                          <th className="hidden sm:table-cell px-4 py-3 text-center text-xs text-galenic-muted uppercase tracking-wider font-medium whitespace-nowrap print:font-bold print:bg-gray-100">g / 1 kg</th>
                           <th className="hidden sm:table-cell px-4 py-3 text-left text-xs text-galenic-muted uppercase tracking-wider font-medium whitespace-nowrap">Apporto Reale</th>
                           <th className="hidden sm:table-cell px-4 py-3 text-center text-xs text-galenic-muted uppercase tracking-wider font-medium whitespace-nowrap">VNR %</th>
                           <th className="hidden sm:table-cell px-4 py-3 text-center text-xs text-galenic-muted uppercase tracking-wider font-medium whitespace-nowrap">Fill</th>

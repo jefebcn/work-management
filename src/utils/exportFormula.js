@@ -64,7 +64,7 @@ function dataProdotto(formula, mode) {
 function dataIngredientiCompleto(rows, rmMap) {
   const header = [
     '#', 'Materia Prima', 'Fornitore',
-    'mg/dose', '% Formula',
+    'mg/dose', '% Formula', 'Produzione (g per kg)',
     'Purezza %', 'Titolo %', 'Nutriente Attivo',
     'Apporto/Dose (mg)', 'Apporto/Die (mg)', 'VNR %',
     'Limite Max (mg/die)', 'Stato',
@@ -72,12 +72,14 @@ function dataIngredientiCompleto(rows, rmMap) {
   const body = rows.map((row, i) => {
     const rm = rmMap[row.rawMaterialId]
     if (!rm) return null
+    const gPerKg = row.percentOfTotal > 0 ? row.percentOfTotal * 10 : 0
     return [
       i + 1,
       rm.name,
       rm.supplier || '',
       fmtN(row.amountMg, 3),
       fmtN(row.percentOfTotal, 2) + '%',
+      fmtN(gPerKg, 3) + ' g',
       fmtN(rm.purity, 1),
       fmtN(rm.titration, 1),
       rm.activeNutrient || '',
@@ -88,7 +90,7 @@ function dataIngredientiCompleto(rows, rmMap) {
       row.exceedsMaxLimit ? '⚠ SUPERA LIMITE' : (rm.maxLimitMg > 0 ? '✓ OK' : ''),
     ]
   }).filter(Boolean)
-  return { data: [header, ...body], cols: [4, 28, 20, 10, 10, 10, 10, 20, 16, 16, 10, 16, 14] }
+  return { data: [header, ...body], cols: [4, 28, 20, 10, 10, 18, 10, 10, 20, 16, 16, 10, 16, 14] }
 }
 
 function dataProfiloNutrizionale(rows, rmMap) {

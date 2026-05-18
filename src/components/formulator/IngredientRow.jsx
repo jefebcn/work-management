@@ -213,6 +213,14 @@ export default function IngredientRow({ computedRow, rowIndex = 0, unitMode = 'd
         </div>
       </td>
 
+      {/* g / 1kg — produzione campione 1 kg */}
+      <td className="hidden sm:table-cell px-4 py-3 align-middle text-center print:bg-gray-50">
+        <div className="font-mono text-sm font-semibold text-galenic-primary tabular-nums">
+          {percent > 0 ? (percent * 10).toFixed(3).replace('.', ',') : '—'}
+        </div>
+        <div className="cell-unit mt-0.5 pl-1">g / kg</div>
+      </td>
+
       {/* TARGET ATTIVO — emphasized when titrated */}
       <td className="hidden sm:table-cell px-4 py-2 align-top">
         <div className="flex flex-col gap-1.5">
