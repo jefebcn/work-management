@@ -1,14 +1,16 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { useApp } from '../../context/AppContext.jsx'
 import Badge from '../ui/Badge.jsx'
 
 export default function NRVSummaryPanel() {
   const { rawMaterials, computed } = useApp()
 
-  if (!computed || !computed.rows || computed.rows.length === 0) return null
+  const sortedRows = useMemo(
+    () => computed?.rows ? [...computed.rows].sort((a, b) => b.dailyContribution - a.dailyContribution) : [],
+    [computed?.rows],
+  )
 
-  // All ingredients, sorted by daily contribution descending
-  const sortedRows = [...computed.rows].sort((a, b) => b.dailyContribution - a.dailyContribution)
+  if (!computed || !computed.rows || computed.rows.length === 0) return null
 
   return (
     <div className="bg-galenic-surface border border-galenic-border rounded-xl">

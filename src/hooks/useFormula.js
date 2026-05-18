@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { loadFromStorage, saveToStorage } from '../utils/localStorage.js'
+import { loadFromStorage, saveToStorage, removeFromStorage } from '../utils/localStorage.js'
 import { STORAGE_KEYS } from '../utils/storageKeys.js'
 import { generateId } from '../utils/idGenerator.js'
 import { computeFormulaResults } from '../utils/formulaCalculations.js'
@@ -16,7 +16,12 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
   const [activeFormula, setActiveFormula] = useState(null)
   const [lastSaved,     setLastSaved]     = useState(null)
   const [saving,        setSaving]        = useState(false)
-  const migratedRef = useRef(false)
+  const [draftRecovery, setDraftRecovery] = useState(() =>
+    loadFromStorage(STORAGE_KEYS.AUTOSAVE_DRAFT, null),
+  )
+  const migratedRef  = useRef(false)
+  const autosaveRef  = useRef(null)
+  const cloudSaveRef = useRef(null)
 
   // One-shot migration at first render when macrothemes are loaded
   useEffect(() => {
@@ -52,6 +57,37 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
     if (formulas.length > 0) setLastSaved(new Date())
   }, [formulas])
 
+  // Auto-save active formula to localStorage (debounced 800 ms)
+  useEffect(() => {
+    if (!activeFormula) return
+    clearTimeout(autosaveRef.current)
+    autosaveRef.current = setTimeout(() => {
+      saveToStorage(STORAGE_KEYS.AUTOSAVE_DRAFT, activeFormula)
+    }, 800)
+    return () => clearTimeout(autosaveRef.current)
+  }, [activeFormula])
+
+  // Debounced cloud save — fires 2.5 s after the last queued call
+  function queueCloudSave(formula) {
+    if (!user) return
+    clearTimeout(cloudSaveRef.current)
+    cloudSaveRef.current = setTimeout(() => {
+      dbUpsert('formulas', user.id, formula)
+    }, 2500)
+  }
+
+  // Draft recovery helpers
+  function restoreDraft() {
+    if (!draftRecovery) return
+    setActiveFormula(draftRecovery)
+    setDraftRecovery(null)
+  }
+
+  function discardDraft() {
+    removeFromStorage(STORAGE_KEYS.AUTOSAVE_DRAFT)
+    setDraftRecovery(null)
+  }
+
   // Derived computed results — recalculated on every active-formula change
   const computed = useMemo(
     () => computeFormulaResults(activeFormula, rawMaterials, packaging),
@@ -73,6 +109,8 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
       await dbUpsert('formulas', user.id, saved)
       setSaving(false)
     }
+    removeFromStorage(STORAGE_KEYS.AUTOSAVE_DRAFT)
+    setDraftRecovery(null)
     setLastSaved(new Date())
   }
 
@@ -183,7 +221,7 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
       prev.map(f => {
         if (f.id !== formulaId) return f
         const updated = { ...f, macrothemeId, updatedAt: new Date().toISOString() }
-        if (user) dbUpsert('formulas', user.id, updated)
+        queueCloudSave(updated)
         return updated
       }),
     )
@@ -603,6 +641,9 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
     replaceFormulas,
     lastSaved,
     saving,
+    draftRecovery,
+    restoreDraft,
+    discardDraft,
 
     activeFormula,
     computed,

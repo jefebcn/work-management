@@ -1,17 +1,20 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { useApp } from '../../context/AppContext.jsx'
 
 export default function BatchScalingPanel() {
   const { activeFormula, computed, rawMaterials, setFormulaField } = useApp()
+
+  const rmMap = useMemo(() => {
+    const map = {}
+    rawMaterials.forEach(rm => { map[rm.id] = rm })
+    return map
+  }, [rawMaterials])
 
   if (!computed?.rows?.length || !activeFormula) return null
 
   const batchSize      = activeFormula.batchSize || 1000
   const totalBatchCost = computed.batchCost * batchSize
   const totalBatchKg   = (computed.totalWeightMg * batchSize) / 1_000_000
-
-  const rmMap = {}
-  rawMaterials.forEach(rm => { rmMap[rm.id] = rm })
 
   return (
     <div className="bg-galenic-surface border border-galenic-border rounded-xl">

@@ -78,6 +78,9 @@ export function AppProvider({ children }) {
     deleteFormula:      formulaStore.deleteFormula,
     lastSaved:          formulaStore.lastSaved,
     saving:             formulaStore.saving,
+    draftRecovery:      formulaStore.draftRecovery,
+    restoreDraft:       formulaStore.restoreDraft,
+    discardDraft:       formulaStore.discardDraft,
 
     // Active builder session
     activeFormula:           formulaStore.activeFormula,
