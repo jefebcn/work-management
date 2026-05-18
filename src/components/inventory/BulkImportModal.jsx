@@ -190,7 +190,7 @@ export default function BulkImportModal({ onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4"
       onClick={e => e.target === e.currentTarget && onClose()}
     >
       <div className="bg-galenic-surface border border-galenic-border rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl">

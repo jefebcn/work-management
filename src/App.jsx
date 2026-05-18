@@ -13,10 +13,11 @@ import FormulatorPage from './components/formulator/FormulatorPage.jsx'
 import BriefingPage from './components/briefing/BriefingPage.jsx'
 import PublicBriefingForm from './components/briefing/PublicBriefingForm.jsx'
 import CommandBar from './components/ui/CommandBar.jsx'
+import ToastContainer from './components/ui/Toast.jsx'
 import LoginPage from './components/auth/LoginPage.jsx'
 
 function AppShell() {
-  const { currentModule } = useApp()
+  const { currentModule, toasts, removeToast } = useApp()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [commandOpen, setCommandOpen] = useState(false)
 
@@ -58,6 +59,7 @@ function AppShell() {
         </PageWrapper>
       </div>
       <CommandBar open={commandOpen} onClose={() => setCommandOpen(false)} />
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   )
 }

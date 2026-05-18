@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import RecipeImportModal from './RecipeImportModal.jsx'
 import { useApp } from '../../context/AppContext.jsx'
+import { generateId } from '../../utils/idGenerator.js'
 import Button from '../ui/Button.jsx'
 import StatusBadge from '../ui/StatusBadge.jsx'
 import { fromMg } from '../../utils/weightConversions.js'
@@ -83,14 +84,14 @@ export default function FormulaList({ selectedMacroId }) {
     const now = new Date().toISOString()
     const dup = {
       ...formula,
-      id: `frm_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      productGroupId: `frm_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      name: `${formula.name} (copia)`,
-      versionLabel: 'v1.0',
-      versionNote: '',
-      status: 'draft',
-      createdAt: now,
-      updatedAt: now,
+      id:             generateId('frm'),
+      productGroupId: generateId('frm'),
+      name:           `${formula.name} (copia)`,
+      versionLabel:   'v1.0',
+      versionNote:    '',
+      status:         'draft',
+      createdAt:      now,
+      updatedAt:      now,
     }
     saveFormula(dup)
   }

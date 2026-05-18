@@ -9,7 +9,7 @@ import { suggestMacrothemeId } from '../utils/macrothemeAutoSuggest.js'
 import { dbLoadAll, dbUpsert, dbDelete, dbUpsertMany } from '../lib/db.js'
 import { DEFAULT_SOFT_COATING, SYRUP_TEMPLATES } from '../utils/softCoatingCalculations.js'
 
-export function useFormula(rawMaterials, packaging, macrothemes = [], user = null) {
+export function useFormula(rawMaterials, packaging, macrothemes = [], user = null, addToast = null) {
   const [formulas, setFormulas] = useState(() =>
     loadFromStorage(STORAGE_KEYS.FORMULAS, []),
   )
@@ -22,6 +22,14 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
   const migratedRef  = useRef(false)
   const autosaveRef  = useRef(null)
   const cloudSaveRef = useRef(null)
+
+  // Flush / cancel pending timers on unmount
+  useEffect(() => {
+    return () => {
+      clearTimeout(autosaveRef.current)
+      clearTimeout(cloudSaveRef.current)
+    }
+  }, [])
 
   // One-shot migration at first render when macrothemes are loaded
   useEffect(() => {
@@ -106,8 +114,15 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
     })
     if (user) {
       setSaving(true)
-      await dbUpsert('formulas', user.id, saved)
-      setSaving(false)
+      try {
+        const ok = await dbUpsert('formulas', user.id, saved)
+        if (!ok) addToast?.('Salvataggio cloud non riuscito. Dati salvati in locale.', 'error')
+        else addToast?.('Formula salvata.', 'success')
+      } catch {
+        addToast?.('Errore di connessione. Verifica la rete e riprova.', 'error')
+      } finally {
+        setSaving(false)
+      }
     }
     removeFromStorage(STORAGE_KEYS.AUTOSAVE_DRAFT)
     setDraftRecovery(null)

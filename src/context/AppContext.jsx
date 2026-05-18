@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { useInventory } from '../hooks/useInventory.js'
 import { usePackaging } from '../hooks/usePackaging.js'
 import { useFormula } from '../hooks/useFormula.js'
@@ -13,6 +13,21 @@ export function AppProvider({ children }) {
   const { user, cloudEnabled } = useAuth()
   const [currentModule, setCurrentModule] = useState('dashboard')
   const [newBriefingsCount, setNewBriefingsCount] = useState(0)
+
+  // ── Toast notifications ────────────────────────────────────────────────────
+  const [toasts, setToasts] = useState([])
+
+  const addToast = useCallback((message, type = 'info', duration = 4500) => {
+    const id = `toast_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`
+    setToasts(prev => [...prev, { id, message, type }])
+    if (duration > 0) {
+      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), duration)
+    }
+  }, [])
+
+  const removeToast = useCallback((id) => {
+    setToasts(prev => prev.filter(t => t.id !== id))
+  }, [])
 
   // Load completed briefings count + subscribe to Realtime for badge
   useEffect(() => {
@@ -47,6 +62,7 @@ export function AppProvider({ children }) {
     packagingStore.packaging,
     macrothemeStore.macrothemes,
     user,
+    addToast,
   )
 
   function importBackup({ rawMaterials, packaging, formulas }) {
@@ -121,6 +137,11 @@ export function AppProvider({ children }) {
     // Briefing badge
     newBriefingsCount,
     decrementNewBriefingsCount,
+
+    // Toast notifications
+    toasts,
+    addToast,
+    removeToast,
 
     // Backup / restore
     importBackup,

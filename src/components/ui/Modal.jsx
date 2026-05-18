@@ -14,7 +14,7 @@ export default function Modal({ isOpen, onClose, title, children, width = 'max-w
   if (!isOpen) return null
 
   return ReactDOM.createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       {/* Backdrop with blur */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"

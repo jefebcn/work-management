@@ -9,8 +9,17 @@ import Button from '../ui/Button.jsx'
 export default function DashboardPage() {
   const { formulas, rawMaterials, packaging, macrothemes, openFormula, setCurrentModule, importBriefing } = useApp()
 
-  const kpis   = useMemo(() => computeDashboardKPIs(formulas, rawMaterials, packaging), [formulas, rawMaterials, packaging])
-  const recent = useMemo(() => recentActivity(formulas, 5), [formulas])
+  const [selectedMacroId, setSelectedMacroId] = useState('all')
+
+  const filteredFormulas = useMemo(
+    () => selectedMacroId === 'all'
+      ? formulas
+      : formulas.filter(f => (f.macrothemeId || null) === selectedMacroId),
+    [formulas, selectedMacroId],
+  )
+
+  const kpis   = useMemo(() => computeDashboardKPIs(filteredFormulas, rawMaterials, packaging), [filteredFormulas, rawMaterials, packaging])
+  const recent = useMemo(() => recentActivity(filteredFormulas, 5), [filteredFormulas])
 
   const [showImport, setShowImport]   = useState(false)
   const [importCode, setImportCode]   = useState('')
@@ -40,11 +49,46 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Welcome header */}
-      <div>
-        <h1 className="text-xl font-semibold text-galenic-primary">Dashboard</h1>
-        <p className="text-xs font-mono text-galenic-muted mt-0.5">
-          Panoramica del tuo archivio formule
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-xl font-semibold text-galenic-primary">Dashboard</h1>
+          <p className="text-xs font-mono text-galenic-muted mt-0.5">
+            Panoramica del tuo archivio formule
+          </p>
+        </div>
+        {/* Macrotheme filter pills */}
+        {macrothemes.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              onClick={() => setSelectedMacroId('all')}
+              className={[
+                'px-3 py-1 rounded-full text-xs font-mono transition-colors border',
+                selectedMacroId === 'all'
+                  ? 'bg-galenic-accent text-white border-galenic-accent'
+                  : 'bg-galenic-elevated border-galenic-border text-galenic-muted hover:text-galenic-primary',
+              ].join(' ')}
+            >
+              Tutti ({formulas.length})
+            </button>
+            {macrothemes.map(m => {
+              const count = formulas.filter(f => (f.macrothemeId || null) === m.id).length
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => setSelectedMacroId(m.id)}
+                  className={[
+                    'px-3 py-1 rounded-full text-xs font-mono transition-colors border',
+                    selectedMacroId === m.id
+                      ? 'bg-galenic-accent text-white border-galenic-accent'
+                      : 'bg-galenic-elevated border-galenic-border text-galenic-muted hover:text-galenic-primary',
+                  ].join(' ')}
+                >
+                  {m.name} ({count})
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* KPI Cards */}
@@ -82,7 +126,7 @@ export default function DashboardPage() {
 
       {/* Briefing import modal */}
       {showImport && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-galenic-surface rounded-xl border border-galenic-border shadow-2xl w-full max-w-md space-y-4 p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">

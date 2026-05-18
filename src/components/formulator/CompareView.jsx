@@ -21,7 +21,7 @@ export default function CompareView({ formulaA, formulaB, onClose }) {
   if (!formulaA || !formulaB) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/70 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 bg-black/70 backdrop-blur-sm">
       <div className="w-full sm:max-w-5xl max-h-[92vh] sm:max-h-[90vh] flex flex-col bg-galenic-surface border border-galenic-border sm:rounded-2xl rounded-t-2xl shadow-xl overflow-hidden">
 
         {/* Header */}
