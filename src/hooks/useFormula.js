@@ -167,6 +167,7 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
       versionLabel:   'v1.0',
       versionNote:    '',
       macrothemeId:   opts.macrothemeId || suggestMacrothemeId(initialType, macrothemes),
+      folderId:       opts.folderId || null,
       clientName:         opts.clientName         || '',
       targetPrice:        opts.targetPrice         ?? null,
       format:             opts.format             || '',
@@ -229,6 +230,17 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
     setActiveFormula(formula)
     if (user) dbUpsert('formulas', user.id, formula)
     return formula
+  }
+
+  function setFolderForFormula(formulaId, folderId) {
+    setFormulas(prev =>
+      prev.map(f => {
+        if (f.id !== formulaId) return f
+        const updated = { ...f, folderId: folderId || null, updatedAt: new Date().toISOString() }
+        queueCloudSave(updated)
+        return updated
+      }),
+    )
   }
 
   function setMacrothemeForFormula(formulaId, macrothemeId) {
@@ -678,6 +690,7 @@ export function useFormula(rawMaterials, packaging, macrothemes = [], user = nul
     setPackagingId,
     createSnapshot,
     setMacrothemeForFormula,
+    setFolderForFormula,
     importBriefing,
 
     // Soft Coating

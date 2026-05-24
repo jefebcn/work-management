@@ -4,4 +4,5 @@ export const STORAGE_KEYS = {
   FORMULAS:       'galenic_formulas',
   MACROTHEMES:    'galenic_macrothemes',
   AUTOSAVE_DRAFT: 'galenic_autosave_draft',
+  FOLDERS:        'galenic_folders',
 }

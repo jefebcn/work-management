@@ -3,6 +3,7 @@ import { useInventory } from '../hooks/useInventory.js'
 import { usePackaging } from '../hooks/usePackaging.js'
 import { useFormula } from '../hooks/useFormula.js'
 import { useMacrothemes } from '../hooks/useMacrothemes.js'
+import { useFolders } from '../hooks/useFolders.js'
 import { useAuth } from './AuthContext.jsx'
 import { dbLoadBriefingRequests } from '../lib/db.js'
 import { supabase } from '../lib/supabase.js'
@@ -57,6 +58,7 @@ export function AppProvider({ children }) {
   const inventory       = useInventory(user)
   const packagingStore  = usePackaging(user)
   const macrothemeStore = useMacrothemes(user)
+  const folderStore     = useFolders(user)
   const formulaStore    = useFormula(
     inventory.rawMaterials,
     packagingStore.packaging,
@@ -117,7 +119,14 @@ export function AppProvider({ children }) {
     setPackagingId:          formulaStore.setPackagingId,
     createSnapshot:          formulaStore.createSnapshot,
     setMacrothemeForFormula: formulaStore.setMacrothemeForFormula,
+    setFolderForFormula:     formulaStore.setFolderForFormula,
     importBriefing:          formulaStore.importBriefing,
+
+    // Folders
+    folders:        folderStore.folders,
+    createFolder:   folderStore.createFolder,
+    renameFolder:   folderStore.renameFolder,
+    deleteFolder:   folderStore.deleteFolder,
 
     // Soft Coating
     updateSoftCoating:          formulaStore.updateSoftCoating,
