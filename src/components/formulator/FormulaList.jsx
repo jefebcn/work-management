@@ -22,7 +22,18 @@ const TYPE_DOT = {
   'Sistemi Gommosi e Coated': 'bg-orange-400',
 }
 
-export default function FormulaList({ selectedMacroId }) {
+// ── Strict formula type → macrotheme name mapping ─────────────────────────
+// For `kind === 'auto'` macrothemes we filter by formula.type (= formType),
+// NOT by formula.macrothemeId, which may be stale / incorrectly assigned.
+function formulaMatchesMacro(f, macro) {
+  if (!macro) return true                          // 'all' — no filter
+  if (macro.kind === 'auto' && macro.formType) {
+    return f.type === macro.formType               // strict type match
+  }
+  return (f.macrothemeId || null) === macro.id     // custom macro: by id
+}
+
+export default function FormulaList({ selectedMacroId, onSelectMacro }) {
   const {
     formulas, openFormula, deleteFormula, newFormula, saveFormula, macrothemes,
     folders, createFolder, renameFolder, deleteFolder,
@@ -33,33 +44,34 @@ export default function FormulaList({ selectedMacroId }) {
   const [historyGroup,      setHistoryGroup]       = useState(null)
   const [showRecipeImport,  setShowRecipeImport]   = useState(false)
   const [currentFolderId,   setCurrentFolderId]    = useState(null)
-  const [moveTarget,        setMoveTarget]         = useState(null)  // formula to move
+  const [moveTarget,        setMoveTarget]         = useState(null)
   const [creatingFolder,    setCreatingFolder]     = useState(false)
   const [newFolderName,     setNewFolderName]      = useState('')
   const [renamingFolderId,  setRenamingFolderId]   = useState(null)
   const [renameValue,       setRenameValue]        = useState('')
 
-  // Reset folder navigation when the active macro changes
+  // Reset folder navigation whenever the selected macrotheme changes
   useEffect(() => {
     setCompareSelection([])
     setCurrentFolderId(null)
   }, [selectedMacroId])
 
-  const activeMacro   = macrothemes.find(m => m.id === selectedMacroId) ?? macrothemes[0]
+  const isAll      = selectedMacroId === 'all'
+  const activeMacro   = isAll ? null : (macrothemes.find(m => m.id === selectedMacroId) ?? null)
   const activeMacroId = activeMacro?.id ?? null
 
-  // Folders belonging to the active macrotheme, sorted alphabetically
+  // Folders scoped to the active macrotheme (or all when isAll)
   const macroFolders = useMemo(
-    () => folders
-      .filter(f => (f.macrothemeId || null) === activeMacroId)
+    () => (isAll ? folders : folders.filter(f => (f.macrothemeId || null) === activeMacroId))
+      .slice()
       .sort((a, b) => a.name.localeCompare(b.name, 'it')),
-    [folders, activeMacroId],
+    [folders, isAll, activeMacroId],
   )
 
-  // Product groups — scoped by macrotheme AND current folder
+  // Product groups — strict type filter + folder filter
   const productGroups = useMemo(() => {
     const inScope = formulas.filter(f => {
-      if ((f.macrothemeId || null) !== activeMacroId) return false
+      if (!formulaMatchesMacro(f, activeMacro)) return false
       return currentFolderId !== null
         ? (f.folderId || null) === currentFolderId
         : (f.folderId || null) === null
@@ -76,20 +88,20 @@ export default function FormulaList({ selectedMacroId }) {
     }).sort((a, b) =>
       new Date(b.latest.updatedAt).getTime() - new Date(a.latest.updatedAt).getTime(),
     )
-  }, [formulas, activeMacroId, currentFolderId])
+  }, [formulas, activeMacro, currentFolderId])
 
-  // Count of projects in each folder (for badges)
+  // Count of distinct project-groups in each folder (for folder badges)
   const folderCounts = useMemo(() => {
     const counts = {}
     formulas
-      .filter(f => (f.macrothemeId || null) === activeMacroId && f.folderId)
+      .filter(f => formulaMatchesMacro(f, activeMacro) && f.folderId)
       .forEach(f => {
         const gId = f.productGroupId || f.id
         counts[f.folderId] = counts[f.folderId] || new Set()
         counts[f.folderId].add(gId)
       })
     return Object.fromEntries(Object.entries(counts).map(([k, s]) => [k, s.size]))
-  }, [formulas, activeMacroId])
+  }, [formulas, activeMacro])
 
   const currentFolder = macroFolders.find(f => f.id === currentFolderId) ?? null
 
@@ -161,14 +173,25 @@ export default function FormulaList({ selectedMacroId }) {
       {/* ── Header row ─────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div>
-          {/* Breadcrumbs */}
-          <nav className="flex items-center gap-1 text-xs font-mono text-galenic-muted/60 mb-1">
+          {/* Breadcrumbs — Tutte le Formule > [Macro] > [Cartella] */}
+          <nav className="flex items-center gap-1 text-xs font-mono text-galenic-muted/60 mb-1 flex-wrap">
             <button
-              onClick={() => setCurrentFolderId(null)}
-              className={`hover:text-galenic-primary transition-colors ${!isInFolder ? 'text-galenic-primary font-semibold pointer-events-none' : ''}`}
+              onClick={() => { onSelectMacro?.('all'); setCurrentFolderId(null) }}
+              className={`hover:text-galenic-primary transition-colors ${isAll && !isInFolder ? 'text-galenic-primary font-semibold pointer-events-none' : ''}`}
             >
-              {activeMacro?.name || 'Progetti'}
+              Tutte le Formule
             </button>
+            {!isAll && (
+              <>
+                <ChevronRight size={10} className="opacity-40" />
+                <button
+                  onClick={() => setCurrentFolderId(null)}
+                  className={`hover:text-galenic-primary transition-colors ${!isInFolder ? 'text-galenic-primary font-semibold pointer-events-none' : ''}`}
+                >
+                  {activeMacro?.name || '—'}
+                </button>
+              </>
+            )}
             {isInFolder && (
               <>
                 <ChevronRight size={10} className="opacity-40" />
@@ -183,7 +206,7 @@ export default function FormulaList({ selectedMacroId }) {
           <p className="text-xs font-mono text-galenic-muted/70">
             {isInFolder
               ? `${productGroups.length} ${productGroups.length === 1 ? 'progetto' : 'progetti'} in questa cartella`
-              : `${macroFolders.length} cartelle · ${productGroups.length} ${productGroups.length === 1 ? 'progetto' : 'progetti'} liberi`
+              : `${macroFolders.length} ${macroFolders.length === 1 ? 'cartella' : 'cartelle'} · ${productGroups.length} ${productGroups.length === 1 ? 'progetto libero' : 'progetti liberi'}`
             }
           </p>
         </div>
@@ -255,6 +278,8 @@ export default function FormulaList({ selectedMacroId }) {
           <p className="text-xs font-mono text-galenic-muted/50 mb-3">
             {isInFolder
               ? `Aggiungi un progetto o spostane uno nella cartella "${currentFolder?.name}"`
+              : isAll
+              ? 'Nessuna formula nel database'
               : `${activeMacro?.name} è ancora vuoto`
             }
           </p>

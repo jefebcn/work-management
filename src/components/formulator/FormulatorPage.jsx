@@ -7,13 +7,14 @@ import FormulaBuilder from './FormulaBuilder.jsx'
 
 export default function FormulatorPage() {
   const { activeFormula, macrothemes, draftRecovery, restoreDraft, discardDraft } = useApp()
-  const [selectedMacroId, setSelectedMacroId] = useState(() => macrothemes[0]?.id ?? null)
+  // 'all' = "Tutte le Formule", any other string = macrotheme DB id
+  const [selectedMacroId, setSelectedMacroId] = useState('all')
 
-  // Keep selection valid as macrothemes change (e.g. after cloud sync)
+  // If the stored selection becomes invalid after a cloud sync, reset to 'all'
   useEffect(() => {
-    if (!macrothemes.length) return
-    if (!selectedMacroId || !macrothemes.find(m => m.id === selectedMacroId)) {
-      setSelectedMacroId(macrothemes[0].id)
+    if (selectedMacroId === 'all') return
+    if (!macrothemes.find(m => m.id === selectedMacroId)) {
+      setSelectedMacroId('all')
     }
   }, [macrothemes])
 
@@ -54,7 +55,7 @@ export default function FormulatorPage() {
       <div className="min-w-0">
         {activeFormula
           ? <FormulaBuilder />
-          : <FormulaList selectedMacroId={selectedMacroId} />
+          : <FormulaList selectedMacroId={selectedMacroId} onSelectMacro={setSelectedMacroId} />
         }
       </div>
 

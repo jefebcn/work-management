@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Folder, FolderPlus, FolderEdit, Trash2 } from 'lucide-react'
+import { Folder, FolderPlus, FolderEdit, Trash2, LayoutGrid } from 'lucide-react'
 import { useApp } from '../../context/AppContext.jsx'
 import MacrothemeForm from './MacrothemeForm.jsx'
 
@@ -10,11 +10,23 @@ export default function MacrothemeSidebar({ selectedMacroId, onSelect }) {
   } = useApp()
   const [macroModal, setMacroModal] = useState(null)
 
+  // Separate counts: auto macrothemes count by formType, custom by macrothemeId
   const countsByMacro = useMemo(() => {
-    const counts = {}
-    formulas.forEach(f => { counts[f.macrothemeId || 'orphan'] = (counts[f.macrothemeId || 'orphan'] || 0) + 1 })
-    return counts
+    const byType = {}   // formType → count
+    const byId   = {}   // macrothemeId → count
+    formulas.forEach(f => {
+      if (f.type) byType[f.type] = (byType[f.type] || 0) + 1
+      const id = f.macrothemeId || 'orphan'
+      byId[id] = (byId[id] || 0) + 1
+    })
+    return { byType, byId }
   }, [formulas])
+
+  function macroCount(m) {
+    return m.kind === 'auto'
+      ? (countsByMacro.byType[m.formType] || 0)
+      : (countsByMacro.byId[m.id]  || 0)
+  }
 
   function handleCreate(name) {
     const created = addMacrotheme(name)
@@ -34,8 +46,10 @@ export default function MacrothemeSidebar({ selectedMacroId, onSelect }) {
       formulas.filter(f => f.macrothemeId === id).forEach(f => setMacrothemeForFormula(f.id, fallback.id))
     }
     deleteMacrotheme(id)
-    if (selectedMacroId === id) onSelect(fallback?.id ?? null)
+    if (selectedMacroId === id) onSelect('all')
   }
+
+  const allCount = formulas.length
 
   return (
     <>
@@ -55,9 +69,36 @@ export default function MacrothemeSidebar({ selectedMacroId, onSelect }) {
           </div>
 
           <div className="space-y-0.5 bg-galenic-surface border border-galenic-border rounded-xl p-2 shadow-sm">
+
+            {/* ── Global "Tutte le Formule" entry ── */}
+            <button
+              onClick={() => onSelect('all')}
+              className={[
+                'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-left transition-all',
+                selectedMacroId === 'all'
+                  ? 'bg-galenic-accent/12 text-galenic-accent font-medium'
+                  : 'text-galenic-muted hover:text-galenic-primary hover:bg-galenic-elevated/60',
+              ].join(' ')}
+            >
+              <LayoutGrid size={12} className={selectedMacroId === 'all' ? 'text-galenic-accent' : 'opacity-60'} />
+              <span className="text-xs flex-1 truncate">Tutte le Formule</span>
+              <span className={[
+                'text-xs font-mono tabular-nums px-1.5 rounded',
+                selectedMacroId === 'all' ? 'text-galenic-accent' : 'text-galenic-muted/60',
+              ].join(' ')}>
+                {allCount}
+              </span>
+            </button>
+
+            {/* ── Divider ── */}
+            {macrothemes.length > 0 && (
+              <div className="my-1.5 border-t border-galenic-border/40" />
+            )}
+
+            {/* ── Per-macrotheme entries ── */}
             {macrothemes.map(m => {
               const isActive = m.id === selectedMacroId
-              const count    = countsByMacro[m.id] || 0
+              const count    = macroCount(m)
               return (
                 <div key={m.id} className="group relative">
                   <button
