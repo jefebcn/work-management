@@ -427,5 +427,5 @@ export async function exportFormulaToExcel(formula, computed, rawMaterials, pack
   const suffix   = mode === 'full' ? 'RISERVATO' : 'pubblica'
   const filename = `${slugify(formula.name)}_${suffix}_${dateStr}.xlsx`
 
-  XLSX.writeFile(wb, filename)
+  XLSX.writeFile(wb, filename, { cellStyles: true })
 }
