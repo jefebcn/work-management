@@ -319,7 +319,10 @@ function dataFogliodiPesata(rows, rmMap, formula) {
 
 /**
  * Generate and trigger download of formula as .xlsx
- * xlsx is loaded dynamically to keep the initial bundle lean.
+ * exceljs is loaded dynamically to keep the initial bundle lean.
+ * exceljs is used instead of xlsx because it supports cell styles (borders,
+ * fills, number formats) in browser-generated workbooks — xlsx community
+ * edition silently discards all s.border / s.fill properties on write.
  *
  * @param {object} formula       active formula object
  * @param {object} computed      computed results from useFormula
@@ -328,56 +331,79 @@ function dataFogliodiPesata(rows, rmMap, formula) {
  * @param {'full'|'public'} mode
  */
 export async function exportFormulaToExcel(formula, computed, rawMaterials, packaging, mode = 'full') {
-  const XLSX = await import('xlsx')
+  const mod     = await import('exceljs')
+  const ExcelJS = mod.default || mod
 
   const rmMap = {}
   rawMaterials.forEach(rm => { rmMap[rm.id] = rm })
 
-  function makeSheet({ data, cols }) {
-    const ws = XLSX.utils.aoa_to_sheet(data)
-    ws['!cols'] = cols.map(w => ({ wch: w }))
+  const wb = new ExcelJS.Workbook()
+
+  // Convert SheetJS-format formula cells to exceljs value objects
+  function toEjsValue(cell) {
+    if (cell === null || cell === undefined) return ''
+    if (typeof cell === 'object' && 'f' in cell) return { formula: cell.f, result: cell.v ?? 0 }
+    return cell
+  }
+
+  // Simple sheet: populate from AOA + set column widths, no extra styling
+  function makeSheet(sheetName, { data, cols }) {
+    const ws = wb.addWorksheet(sheetName)
+    data.forEach(row => ws.addRow(row.map(toEjsValue)))
+    cols.forEach((w, i) => { ws.getColumn(i + 1).width = w })
     return ws
   }
 
-  function makeLabSheet({ data, cols, merges, rowHeights, hdrRowIdx, firstDataIdx, lastDataIdx, totalRowIdx, inputCells }) {
-    const ws = XLSX.utils.aoa_to_sheet(data)
-    ws['!cols'] = cols.map(w => ({ wch: w }))
-    if (merges) ws['!merges'] = merges
-    if (rowHeights) {
-      ws['!rows'] = []
-      Object.entries(rowHeights).forEach(([r, hpt]) => {
-        ws['!rows'][Number(r)] = { hpt }
+  // Lab sheet: full styling — borders, fills, number formats, merges, row heights
+  function makeLabSheet(sheetName, { data, cols, merges, rowHeights, hdrRowIdx, firstDataIdx, lastDataIdx, totalRowIdx, inputCells }) {
+    const ws = wb.addWorksheet(sheetName, {
+      views:     [{ showGridLines: true }],
+      pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+    })
+    ws.pageMargins = { top: 0.98, bottom: 0.98, left: 0.75, right: 0.75, header: 0.3, footer: 0.3 }
+
+    // Populate rows (convert SheetJS formula objects)
+    data.forEach(row => ws.addRow(row.map(toEjsValue)))
+
+    // Column widths
+    cols.forEach((w, i) => { ws.getColumn(i + 1).width = w })
+
+    // Merges: SheetJS 0-based {r,c} → exceljs 1-based (row, col)
+    if (merges) {
+      merges.forEach(({ s, e }) => {
+        try { ws.mergeCells(s.r + 1, s.c + 1, e.r + 1, e.c + 1) } catch (_) { /* overlapping merge */ }
       })
     }
 
-    // Yellow fill for editable input cells (B4, B5, col B ingredient rows)
-    const YELLOW = { fgColor: { rgb: 'FFF2CC' }, patternType: 'solid' }
+    // Row heights
+    if (rowHeights) {
+      Object.entries(rowHeights).forEach(([r, hpt]) => {
+        ws.getRow(Number(r) + 1).height = hpt
+      })
+    }
+
+    // Yellow fill for editable input cells (B4, B5, col B of every ingredient row)
+    const YELLOW = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } }
     if (inputCells) {
       inputCells.forEach(({ r, c }) => {
-        const addr = XLSX.utils.encode_cell({ r, c })
-        if (!ws[addr]) ws[addr] = { t: 'n', v: 0 }
-        ws[addr].s = { ...(ws[addr].s || {}), fill: YELLOW }
+        ws.getCell(r + 1, c + 1).fill = YELLOW
       })
     }
 
-    // Percentage format for col B (data rows + total): stored as decimal, displayed as 60.00%
+    // Percentage format for col B: data rows + total row
     if (firstDataIdx != null) {
       for (let row = firstDataIdx; row <= lastDataIdx; row++) {
-        const addr = XLSX.utils.encode_cell({ r: row, c: 1 })
-        if (ws[addr]) ws[addr].z = '0.00%'
+        ws.getCell(row + 1, 2).numFmt = '0.00%'
       }
-      if (totalRowIdx != null) {
-        const addr = XLSX.utils.encode_cell({ r: totalRowIdx, c: 1 })
-        if (ws[addr]) ws[addr].z = '0.00%'
-      }
+      if (totalRowIdx != null) ws.getCell(totalRowIdx + 1, 2).numFmt = '0.00%'
     }
 
-    // Per-cell border styling — ALL cells in the table get explicit borders so that
-    // yellow-filled cells don't lose their grid lines (Excel hides default gridlines
-    // whenever a background fill is applied; only explicit borders stay visible).
+    // Per-cell borders — every cell in the table gets ALL FOUR sides set explicitly.
+    // This is required because Excel suppresses its default gridlines on any cell
+    // that has a background fill; only explicitly-set borders remain visible.
     if (hdrRowIdx != null && totalRowIdx != null) {
-      const MEDIUM   = { style: 'medium', color: { rgb: '000000' } }
-      const THIN     = { style: 'thin',   color: { rgb: 'A0A0A0' } }
+      const MEDIUM   = { style: 'medium', color: { argb: 'FF000000' } }
+      const THIN     = { style: 'thin',   color: { argb: 'FFA0A0A0' } }
       const NUM_COLS = cols.length  // 5: name | % | mg/dose | g | notes
 
       const tableRows = [
@@ -392,55 +418,52 @@ export async function exportFormulaToExcel(formula, computed, rawMaterials, pack
         const isLastData  = row === lastDataIdx
         const isTotalRow  = row === totalRowIdx
 
-        // Horizontal separators that get MEDIUM:
-        //   • top of entire table  (header top)
-        //   • line below header    (header bottom + firstData top)
-        //   • line above total     (lastData bottom + total top)
-        //   • bottom of table      (total bottom)
+        // MEDIUM on horizontal sides that are outer edges or separator lines:
+        //   top of table, below-header line, above-total line, bottom of table
         const topMedium = isHeader || isFirstData || isTotalRow
         const botMedium = isHeader || isLastData  || isTotalRow
 
         for (let col = 0; col < NUM_COLS; col++) {
-          const addr = XLSX.utils.encode_cell({ r: row, c: col })
-          if (!ws[addr]) ws[addr] = { t: 's', v: '' }
-          ws[addr].s = {
-            ...(ws[addr].s || {}),
-            border: {
-              top:    topMedium        ? MEDIUM : THIN,
-              bottom: botMedium        ? MEDIUM : THIN,
-              left:   col === 0        ? MEDIUM : THIN,
-              right:  col === NUM_COLS - 1 ? MEDIUM : THIN,
-            },
+          ws.getCell(row + 1, col + 1).border = {
+            top:    topMedium          ? MEDIUM : THIN,
+            bottom: botMedium          ? MEDIUM : THIN,
+            left:   col === 0          ? MEDIUM : THIN,
+            right:  col === NUM_COLS-1 ? MEDIUM : THIN,
           }
         }
       })
     }
 
-    ws['!sheetViews'] = [{ showGridLines: true }]
-    // A4 portrait, fit to one page wide
-    ws['!pageSetup'] = { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
-    ws['!pageMargins'] = { top: 0.98, bottom: 0.98, left: 0.75, right: 0.75, header: 0.3, footer: 0.3 }
     return ws
   }
 
-  const wb = XLSX.utils.book_new()
-
-  XLSX.utils.book_append_sheet(wb, makeSheet(dataProdotto(formula, mode)), 'Prodotto')
+  // Build all sheets
+  makeSheet('Prodotto', dataProdotto(formula, mode))
 
   if (mode === 'full') {
-    XLSX.utils.book_append_sheet(wb, makeSheet(dataIngredientiCompleto(computed.rows, rmMap)), 'Ingredienti')
-    XLSX.utils.book_append_sheet(wb, makeSheet(dataProfiloNutrizionale(computed.rows, rmMap)), 'Profilo Nutrizionale')
-    XLSX.utils.book_append_sheet(wb, makeSheet(dataCosti(computed.rows, rmMap, computed, formula)), 'Analisi Costi')
-    XLSX.utils.book_append_sheet(wb, makeLabSheet(dataFogliodiPesata(computed.rows, rmMap, formula)), 'Foglio di Pesata LAB')
+    makeSheet('Ingredienti',         dataIngredientiCompleto(computed.rows, rmMap))
+    makeSheet('Profilo Nutrizionale', dataProfiloNutrizionale(computed.rows, rmMap))
+    makeSheet('Analisi Costi',       dataCosti(computed.rows, rmMap, computed, formula))
+    makeLabSheet('Foglio di Pesata LAB', dataFogliodiPesata(computed.rows, rmMap, formula))
   } else {
-    XLSX.utils.book_append_sheet(wb, makeSheet(dataComposizioneAnonima(computed.rows, rmMap)), 'Composizione')
+    makeSheet('Composizione', dataComposizioneAnonima(computed.rows, rmMap))
     const nutResult = dataNutrizionalePublico(computed.rows, rmMap)
-    if (nutResult) XLSX.utils.book_append_sheet(wb, makeSheet(nutResult), 'Apporto Nutrizionale')
+    if (nutResult) makeSheet('Apporto Nutrizionale', nutResult)
   }
 
   const dateStr  = new Date().toISOString().slice(0, 10)
   const suffix   = mode === 'full' ? 'RISERVATO' : 'pubblica'
   const filename = `${slugify(formula.name)}_${suffix}_${dateStr}.xlsx`
 
-  XLSX.writeFile(wb, filename, { cellStyles: true })
+  // Generate buffer and trigger browser download
+  const buffer = await wb.xlsx.writeBuffer()
+  const blob   = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const url    = URL.createObjectURL(blob)
+  const a      = document.createElement('a')
+  a.href       = url
+  a.download   = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
