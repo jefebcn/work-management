@@ -197,14 +197,14 @@ function dataFogliodiPesata(rows, rmMap, formula) {
   const validRows = sorted.filter(r => rmMap[r.rawMaterialId])
 
   // Layout (1-based Excel rows / 0-based indices):
-  //  R1  (0) — Title (merged A:D)
-  //  R2  (1) — Meta info (merged A:D)
+  //  R1  (0) — Title (merged A:E)
+  //  R2  (1) — Meta info (merged A:E)
   //  R3  (2) — spacer
   //  R4  (3) — "PESO TARGET DOSE (mg)" | B4 ← INPUT yellow
   //  R5  (4) — "QUANTITÀ CAMPIONE (g)"  | B5 ← INPUT yellow
   //  R6  (5) — spacer
-  //  R7  (6) — Column headers
-  //  R8+ (7+)— Ingredient rows: [name | pct_decimal (yellow) | =B*$B$4 | =B*$B$5]
+  //  R7  (6) — Column headers (5 cols: A=name, B=%, C=mg/dose, D=g, E=Note)
+  //  R8+ (7+)— Ingredient rows: [name | pct_decimal (yellow) | =B*$B$4 | =B*$B$5 | '']
   //  blank separator
   //  Total row with SUM formulas for cols B, C, D
   const DATA_START = 8  // 1-based Excel row for first ingredient
@@ -220,6 +220,7 @@ function dataFogliodiPesata(rows, rmMap, formula) {
       pctDecimal,
       { t: 'n', f: `B${excelRow}*$B$4`, v: pctDecimal * formula.targetWeightMg },
       { t: 'n', f: `B${excelRow}*$B$5`, v: pctDecimal * 1000 },
+      '',  // Note / Spunta — operator fills manually
     ]
   })
 
@@ -228,44 +229,45 @@ function dataFogliodiPesata(rows, rmMap, formula) {
 
   const data = [
     // R1 — title (idx 0)
-    [`FOGLIO DI PESATA — ${formula.name}`, '', '', ''],
+    [`FOGLIO DI PESATA — ${formula.name}`, '', '', '', ''],
     // R2 — meta (idx 1)
-    [`${formula.type}  ·  Dosi/die: ${formula.dosiAlGiorno || 1}  ·  Data: ${dateStr}`, '', '', ''],
+    [`${formula.type}  ·  Dosi/die: ${formula.dosiAlGiorno || 1}  ·  Data: ${dateStr}`, '', '', '', ''],
     // R3 — spacer (idx 2)
-    ['', '', '', ''],
+    ['', '', '', '', ''],
     // R4 — dose target INPUT (idx 3) → cell B4
-    ['PESO TARGET DOSE (mg)', formula.targetWeightMg, '', ''],
+    ['PESO TARGET DOSE (mg)', formula.targetWeightMg, '', '', ''],
     // R5 — batch INPUT (idx 4) → cell B5
-    ['QUANTITÀ CAMPIONE (g)', 1000, '', ''],
+    ['QUANTITÀ CAMPIONE (g)', 1000, '', '', ''],
     // R6 — spacer (idx 5)
-    ['', '', '', ''],
+    ['', '', '', '', ''],
     // R7 — column headers (idx 6)
-    ['MATERIA PRIMA', '% PESO', 'mg/dose', 'PESO DA PESARE (g)'],
+    ['MATERIA PRIMA', '% PESO', 'mg/dose', 'PESO DA PESARE (g)', 'Note / Spunta'],
     // R8+ — ingredient rows (idx 7+)
     ...bodyRows,
     // blank separator
-    ['', '', '', ''],
+    ['', '', '', '', ''],
     // total row
     [
       'TOTALE',
       { t: 'n', f: `SUM(B${DATA_START}:B${lastDataRow})`, v: totalPctDecimal },
       { t: 'n', f: `SUM(C${DATA_START}:C${lastDataRow})`, v: totalPctDecimal * formula.targetWeightMg },
       { t: 'n', f: `SUM(D${DATA_START}:D${lastDataRow})`, v: totalPctDecimal * 1000 },
+      '',
     ],
     // footer spacers
-    ['', '', '', ''],
-    ['', '', '', ''],
-    ['', '', '', ''],
+    ['', '', '', '', ''],
+    ['', '', '', '', ''],
+    ['', '', '', '', ''],
     // signature row
-    ['Firma Operatore:', '', '', 'Data / Ora:'],
-    ['', '', '', ''],
-    ['_____________________________', '', '', '______________'],
-    ['', '', '', ''],
+    ['Firma Operatore:', '', '', 'Data / Ora:', ''],
+    ['', '', '', '', ''],
+    ['_____________________________', '', '', '______________', ''],
+    ['', '', '', '', ''],
     // notes
-    ['Note di Produzione:', '', '', ''],
-    ['', '', '', ''],
-    ['____________________________________________', '', '', ''],
-    ['____________________________________________', '', '', ''],
+    ['Note di Produzione:', '', '', '', ''],
+    ['', '', '', '', ''],
+    ['____________________________________________', '', '', '', ''],
+    ['____________________________________________', '', '', '', ''],
   ]
 
   const hdrRowIdx    = 6                    // 0-based (R7)
@@ -278,11 +280,11 @@ function dataFogliodiPesata(rows, rmMap, formula) {
   const notesLine2R = data.length - 1
 
   const merges = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } },  // R1: title
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } },  // R2: meta
-    { s: { r: notesLabelR, c: 0 }, e: { r: notesLabelR, c: 3 } },
-    { s: { r: notesLine1R, c: 0 }, e: { r: notesLine1R, c: 3 } },
-    { s: { r: notesLine2R, c: 0 }, e: { r: notesLine2R, c: 3 } },
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } },  // R1: title
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } },  // R2: meta
+    { s: { r: notesLabelR, c: 0 }, e: { r: notesLabelR, c: 4 } },
+    { s: { r: notesLine1R, c: 0 }, e: { r: notesLine1R, c: 4 } },
+    { s: { r: notesLine2R, c: 0 }, e: { r: notesLine2R, c: 4 } },
   ]
 
   const rowHeights = {}
@@ -303,7 +305,7 @@ function dataFogliodiPesata(rows, rmMap, formula) {
 
   return {
     data,
-    cols: [34, 12, 14, 22],
+    cols: [34, 12, 14, 22, 14],
     merges,
     rowHeights,
     hdrRowIdx,
@@ -370,11 +372,13 @@ export async function exportFormulaToExcel(formula, computed, rawMaterials, pack
       }
     }
 
-    // Per-cell border styling for the weighing table
+    // Per-cell border styling — ALL cells in the table get explicit borders so that
+    // yellow-filled cells don't lose their grid lines (Excel hides default gridlines
+    // whenever a background fill is applied; only explicit borders stay visible).
     if (hdrRowIdx != null && totalRowIdx != null) {
       const MEDIUM   = { style: 'medium', color: { rgb: '000000' } }
       const THIN     = { style: 'thin',   color: { rgb: 'A0A0A0' } }
-      const NUM_COLS = 4
+      const NUM_COLS = cols.length  // 5: name | % | mg/dose | g | notes
 
       const tableRows = [
         hdrRowIdx,
@@ -383,18 +387,29 @@ export async function exportFormulaToExcel(formula, computed, rawMaterials, pack
       ]
 
       tableRows.forEach(row => {
-        const isHeader   = row === hdrRowIdx
-        const isTotalRow = row === totalRowIdx
+        const isHeader    = row === hdrRowIdx
+        const isFirstData = row === firstDataIdx
+        const isLastData  = row === lastDataIdx
+        const isTotalRow  = row === totalRowIdx
+
+        // Horizontal separators that get MEDIUM:
+        //   • top of entire table  (header top)
+        //   • line below header    (header bottom + firstData top)
+        //   • line above total     (lastData bottom + total top)
+        //   • bottom of table      (total bottom)
+        const topMedium = isHeader || isFirstData || isTotalRow
+        const botMedium = isHeader || isLastData  || isTotalRow
+
         for (let col = 0; col < NUM_COLS; col++) {
           const addr = XLSX.utils.encode_cell({ r: row, c: col })
           if (!ws[addr]) ws[addr] = { t: 's', v: '' }
           ws[addr].s = {
             ...(ws[addr].s || {}),
             border: {
-              top:    (isHeader || isTotalRow) ? MEDIUM : THIN,
-              bottom: (isHeader || isTotalRow) ? MEDIUM : THIN,
-              left:   col === 0              ? MEDIUM : THIN,
-              right:  col === NUM_COLS - 1   ? MEDIUM : THIN,
+              top:    topMedium        ? MEDIUM : THIN,
+              bottom: botMedium        ? MEDIUM : THIN,
+              left:   col === 0        ? MEDIUM : THIN,
+              right:  col === NUM_COLS - 1 ? MEDIUM : THIN,
             },
           }
         }
