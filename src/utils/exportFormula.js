@@ -193,58 +193,64 @@ function dataNutrizionalePublico(rows, rmMap) {
 }
 
 function dataFogliodiPesata(rows, rmMap, formula) {
-  const sorted     = [...rows].sort((a, b) => b.amountMg - a.amountMg)
-  const validRows  = sorted.filter(r => rmMap[r.rawMaterialId])
+  const sorted    = [...rows].sort((a, b) => b.amountMg - a.amountMg)
+  const validRows = sorted.filter(r => rmMap[r.rawMaterialId])
 
-  // Fixed rows before data (1-based Excel rows):
-  //  R1  — Title (merged A:D)
-  //  R2  — "BATCH TARGET (g)" label in A2 | 1000 in B2  ← master interactive cell
-  //  R3  — Formula meta info (merged A:D)
-  //  R4  — spacer
-  //  R5  — Column headers
-  //  R6+ — Ingredient rows with =C_n/100*$B$2 formulas
-  const DATA_START = 6
+  // Layout (1-based Excel rows / 0-based indices):
+  //  R1  (0) — Title (merged A:D)
+  //  R2  (1) — Meta info (merged A:D)
+  //  R3  (2) — spacer
+  //  R4  (3) — "PESO TARGET DOSE (mg)" | B4 ← INPUT yellow
+  //  R5  (4) — "QUANTITÀ CAMPIONE (g)"  | B5 ← INPUT yellow
+  //  R6  (5) — spacer
+  //  R7  (6) — Column headers
+  //  R8+ (7+)— Ingredient rows: [name | pct_decimal (yellow) | =B*$B$4 | =B*$B$5]
+  //  blank separator
+  //  Total row with SUM formulas for cols B, C, D
+  const DATA_START = 8  // 1-based Excel row for first ingredient
+
+  const dateStr = new Date().toLocaleDateString('it-IT')
 
   const bodyRows = validRows.map((row, i) => {
-    const rm       = rmMap[row.rawMaterialId]
-    const excelRow = DATA_START + i
-    const preCalc  = row.percentOfTotal / 100 * 1000
+    const rm         = rmMap[row.rawMaterialId]
+    const excelRow   = DATA_START + i
+    const pctDecimal = row.percentOfTotal / 100
     return [
       rm.name,
-      row.amountMg,
-      row.percentOfTotal,
-      { t: 'n', f: `C${excelRow}/100*$B$2`, v: preCalc },
+      pctDecimal,
+      { t: 'n', f: `B${excelRow}*$B$4`, v: pctDecimal * formula.targetWeightMg },
+      { t: 'n', f: `B${excelRow}*$B$5`, v: pctDecimal * 1000 },
     ]
   })
 
-  const lastDataRow  = DATA_START + bodyRows.length - 1
-  const totalRow     = lastDataRow + 2  // one blank between data and total
-  const totalMg      = validRows.reduce((s, r) => s + r.amountMg, 0)
-  const totalPct     = validRows.reduce((s, r) => s + r.percentOfTotal, 0)
-  const totalPreCalc = totalPct / 100 * 1000
-  const dateStr      = new Date().toLocaleDateString('it-IT')
+  const lastDataRow     = DATA_START + bodyRows.length - 1  // 1-based
+  const totalPctDecimal = validRows.reduce((s, r) => s + r.percentOfTotal, 0) / 100
 
   const data = [
-    // R1 — title
+    // R1 — title (idx 0)
     [`FOGLIO DI PESATA — ${formula.name}`, '', '', ''],
-    // R2 — interactive batch target
-    ['BATCH TARGET (g)', 1000, '', ''],
-    // R3 — meta
-    [`${formula.type}  ·  Dose: ${formula.targetWeightMg} mg  ·  Dosi/die: ${formula.dosiAlGiorno || 1}  ·  Data: ${dateStr}`, '', '', ''],
-    // R4 — spacer
+    // R2 — meta (idx 1)
+    [`${formula.type}  ·  Dosi/die: ${formula.dosiAlGiorno || 1}  ·  Data: ${dateStr}`, '', '', ''],
+    // R3 — spacer (idx 2)
     ['', '', '', ''],
-    // R5 — headers
-    ['MATERIA PRIMA', 'mg/dose', '% PESO', 'PESO DA PESARE (g)'],
-    // R6+ — ingredient rows
+    // R4 — dose target INPUT (idx 3) → cell B4
+    ['PESO TARGET DOSE (mg)', formula.targetWeightMg, '', ''],
+    // R5 — batch INPUT (idx 4) → cell B5
+    ['QUANTITÀ CAMPIONE (g)', 1000, '', ''],
+    // R6 — spacer (idx 5)
+    ['', '', '', ''],
+    // R7 — column headers (idx 6)
+    ['MATERIA PRIMA', '% PESO', 'mg/dose', 'PESO DA PESARE (g)'],
+    // R8+ — ingredient rows (idx 7+)
     ...bodyRows,
-    // blank separator before total
+    // blank separator
     ['', '', '', ''],
     // total row
     [
       'TOTALE',
-      totalMg,
-      totalPct,
-      { t: 'n', f: `SUM(D${DATA_START}:D${lastDataRow})`, v: totalPreCalc },
+      { t: 'n', f: `SUM(B${DATA_START}:B${lastDataRow})`, v: totalPctDecimal },
+      { t: 'n', f: `SUM(C${DATA_START}:C${lastDataRow})`, v: totalPctDecimal * formula.targetWeightMg },
+      { t: 'n', f: `SUM(D${DATA_START}:D${lastDataRow})`, v: totalPctDecimal * 1000 },
     ],
     // footer spacers
     ['', '', '', ''],
@@ -262,33 +268,49 @@ function dataFogliodiPesata(rows, rmMap, formula) {
     ['____________________________________________', '', '', ''],
   ]
 
-  // R index (0-based) of the notes lines — used for merges
+  const hdrRowIdx    = 6                    // 0-based (R7)
+  const firstDataIdx = 7                    // 0-based (R8)
+  const lastDataIdx  = 6 + bodyRows.length  // 0-based (inclusive)
+  const totalRowIdx  = 8 + bodyRows.length  // 0-based (after blank separator)
+
   const notesLabelR = data.length - 5
   const notesLine1R = data.length - 2
   const notesLine2R = data.length - 1
 
   const merges = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } },            // R1: title
-    { s: { r: 2, c: 0 }, e: { r: 2, c: 3 } },            // R3: meta
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } },  // R1: title
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } },  // R2: meta
     { s: { r: notesLabelR, c: 0 }, e: { r: notesLabelR, c: 3 } },
     { s: { r: notesLine1R, c: 0 }, e: { r: notesLine1R, c: 3 } },
     { s: { r: notesLine2R, c: 0 }, e: { r: notesLine2R, c: 3 } },
   ]
 
-  // Row heights (points): title tall, header row tall, data rows normal
   const rowHeights = {}
-  rowHeights[0] = 28   // title
-  rowHeights[1] = 22   // batch target
-  rowHeights[4] = 20   // column headers
-  for (let i = 0; i < bodyRows.length; i++) rowHeights[DATA_START - 1 + i] = 18
-  rowHeights[totalRow - 1] = 18  // total
+  rowHeights[0] = 28  // title
+  rowHeights[1] = 18  // meta
+  rowHeights[3] = 22  // B4 input
+  rowHeights[4] = 22  // B5 input
+  rowHeights[6] = 20  // column headers
+  for (let i = 0; i < bodyRows.length; i++) rowHeights[7 + i] = 18
+  rowHeights[totalRowIdx] = 18
+
+  // Input cells that get yellow fill: B4, B5, and col B of every ingredient row
+  const inputCells = [
+    { r: 3, c: 1 },
+    { r: 4, c: 1 },
+    ...Array.from({ length: bodyRows.length }, (_, i) => ({ r: 7 + i, c: 1 })),
+  ]
 
   return {
-    data, cols: [34, 14, 12, 22], merges, rowHeights,
-    hdrRowIdx:   4,
-    firstDataIdx: 5,
-    lastDataIdx:  4 + bodyRows.length,
-    totalRowIdx:  6 + bodyRows.length,
+    data,
+    cols: [34, 12, 14, 22],
+    merges,
+    rowHeights,
+    hdrRowIdx,
+    firstDataIdx,
+    lastDataIdx,
+    totalRowIdx,
+    inputCells,
   }
 }
 
@@ -315,7 +337,7 @@ export async function exportFormulaToExcel(formula, computed, rawMaterials, pack
     return ws
   }
 
-  function makeLabSheet({ data, cols, merges, rowHeights, hdrRowIdx, firstDataIdx, lastDataIdx, totalRowIdx }) {
+  function makeLabSheet({ data, cols, merges, rowHeights, hdrRowIdx, firstDataIdx, lastDataIdx, totalRowIdx, inputCells }) {
     const ws = XLSX.utils.aoa_to_sheet(data)
     ws['!cols'] = cols.map(w => ({ wch: w }))
     if (merges) ws['!merges'] = merges
@@ -324,6 +346,28 @@ export async function exportFormulaToExcel(formula, computed, rawMaterials, pack
       Object.entries(rowHeights).forEach(([r, hpt]) => {
         ws['!rows'][Number(r)] = { hpt }
       })
+    }
+
+    // Yellow fill for editable input cells (B4, B5, col B ingredient rows)
+    const YELLOW = { fgColor: { rgb: 'FFF2CC' }, patternType: 'solid' }
+    if (inputCells) {
+      inputCells.forEach(({ r, c }) => {
+        const addr = XLSX.utils.encode_cell({ r, c })
+        if (!ws[addr]) ws[addr] = { t: 'n', v: 0 }
+        ws[addr].s = { ...(ws[addr].s || {}), fill: YELLOW }
+      })
+    }
+
+    // Percentage format for col B (data rows + total): stored as decimal, displayed as 60.00%
+    if (firstDataIdx != null) {
+      for (let row = firstDataIdx; row <= lastDataIdx; row++) {
+        const addr = XLSX.utils.encode_cell({ r: row, c: 1 })
+        if (ws[addr]) ws[addr].z = '0.00%'
+      }
+      if (totalRowIdx != null) {
+        const addr = XLSX.utils.encode_cell({ r: totalRowIdx, c: 1 })
+        if (ws[addr]) ws[addr].z = '0.00%'
+      }
     }
 
     // Per-cell border styling for the weighing table
