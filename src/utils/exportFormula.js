@@ -283,7 +283,13 @@ function dataFogliodiPesata(rows, rmMap, formula) {
   for (let i = 0; i < bodyRows.length; i++) rowHeights[DATA_START - 1 + i] = 18
   rowHeights[totalRow - 1] = 18  // total
 
-  return { data, cols: [34, 14, 12, 22], merges, rowHeights }
+  return {
+    data, cols: [34, 14, 12, 22], merges, rowHeights,
+    hdrRowIdx:   4,
+    firstDataIdx: 5,
+    lastDataIdx:  4 + bodyRows.length,
+    totalRowIdx:  6 + bodyRows.length,
+  }
 }
 
 
@@ -309,7 +315,7 @@ export async function exportFormulaToExcel(formula, computed, rawMaterials, pack
     return ws
   }
 
-  function makeLabSheet({ data, cols, merges, rowHeights }) {
+  function makeLabSheet({ data, cols, merges, rowHeights, hdrRowIdx, firstDataIdx, lastDataIdx, totalRowIdx }) {
     const ws = XLSX.utils.aoa_to_sheet(data)
     ws['!cols'] = cols.map(w => ({ wch: w }))
     if (merges) ws['!merges'] = merges
@@ -319,6 +325,39 @@ export async function exportFormulaToExcel(formula, computed, rawMaterials, pack
         ws['!rows'][Number(r)] = { hpt }
       })
     }
+
+    // Per-cell border styling for the weighing table
+    if (hdrRowIdx != null && totalRowIdx != null) {
+      const MEDIUM   = { style: 'medium', color: { rgb: '000000' } }
+      const THIN     = { style: 'thin',   color: { rgb: 'A0A0A0' } }
+      const NUM_COLS = 4
+
+      const tableRows = [
+        hdrRowIdx,
+        ...Array.from({ length: lastDataIdx - firstDataIdx + 1 }, (_, i) => firstDataIdx + i),
+        totalRowIdx,
+      ]
+
+      tableRows.forEach(row => {
+        const isHeader   = row === hdrRowIdx
+        const isTotalRow = row === totalRowIdx
+        for (let col = 0; col < NUM_COLS; col++) {
+          const addr = XLSX.utils.encode_cell({ r: row, c: col })
+          if (!ws[addr]) ws[addr] = { t: 's', v: '' }
+          ws[addr].s = {
+            ...(ws[addr].s || {}),
+            border: {
+              top:    (isHeader || isTotalRow) ? MEDIUM : THIN,
+              bottom: (isHeader || isTotalRow) ? MEDIUM : THIN,
+              left:   col === 0              ? MEDIUM : THIN,
+              right:  col === NUM_COLS - 1   ? MEDIUM : THIN,
+            },
+          }
+        }
+      })
+    }
+
+    ws['!sheetViews'] = [{ showGridLines: true }]
     // A4 portrait, fit to one page wide
     ws['!pageSetup'] = { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
     ws['!pageMargins'] = { top: 0.98, bottom: 0.98, left: 0.75, right: 0.75, header: 0.3, footer: 0.3 }
