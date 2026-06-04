@@ -197,115 +197,117 @@ function dataFogliodiPesata(rows, rmMap, formula) {
   const validRows = sorted.filter(r => rmMap[r.rawMaterialId])
 
   // Layout (1-based Excel rows / 0-based indices):
-  //  R1  (0) — Title (merged A:E)
-  //  R2  (1) — Meta info (merged A:E)
+  //  R1  (0) — Title (merged A:D)
+  //  R2  (1) — "BATCH TARGET (g)"       | B2 ← INPUT yellow  (user writes batch size)
   //  R3  (2) — spacer
-  //  R4  (3) — "PESO TARGET DOSE (mg)" | B4 ← INPUT yellow
-  //  R5  (4) — "QUANTITÀ CAMPIONE (g)"  | B5 ← INPUT yellow
-  //  R6  (5) — spacer
-  //  R7  (6) — Column headers (5 cols: A=name, B=%, C=mg/dose, D=g, E=Note)
-  //  R8+ (7+)— Ingredient rows: [name | pct_decimal (yellow) | =B*$B$4 | =B*$B$5 | '']
+  //  R4  (3) — "PESO TARGET DOSE (mg)"  | B4 ← FORMULA =SUM(B6:B{lastDataRow})
+  //  R5  (4) — Column headers: MATERIA PRIMA | mg/dose | % PESO | PESO DA PESARE (g)
+  //  R6+ (5+)— Ingredient rows:
+  //              A = name
+  //              B = amountMg   ← INPUT yellow (user can override)
+  //              C = =B6/$B$4   ← % of total dose, formatted as 0.00%
+  //              D = =C6*$B$2   ← grams to weigh = % × batch
   //  blank separator
-  //  Total row with SUM formulas for cols B, C, D
-  const DATA_START = 8  // 1-based Excel row for first ingredient
+  //  Total row: A=TOTALE, B=SUM(B), C=SUM(C), D=SUM(D)
+  const DATA_START = 6  // 1-based Excel row for first ingredient
 
   const dateStr = new Date().toLocaleDateString('it-IT')
 
   const bodyRows = validRows.map((row, i) => {
-    const rm         = rmMap[row.rawMaterialId]
-    const excelRow   = DATA_START + i
-    const pctDecimal = row.percentOfTotal / 100
+    const rm       = rmMap[row.rawMaterialId]
+    const excelRow = DATA_START + i
+    const pct      = row.amountMg / formula.targetWeightMg  // pre-calc for result cache
     return [
       rm.name,
-      pctDecimal,
-      { t: 'n', f: `B${excelRow}*$B$4`, v: pctDecimal * formula.targetWeightMg },
-      { t: 'n', f: `B${excelRow}*$B$5`, v: pctDecimal * 1000 },
-      '',  // Note / Spunta — operator fills manually
+      row.amountMg,   // INPUT: fixed mg value from formula, user can override
+      { t: 'n', f: `B${excelRow}/$B$4`, v: pct },
+      { t: 'n', f: `C${excelRow}*$B$2`, v: pct * 1000 },
     ]
   })
 
-  const lastDataRow     = DATA_START + bodyRows.length - 1  // 1-based
-  const totalPctDecimal = validRows.reduce((s, r) => s + r.percentOfTotal, 0) / 100
+  const lastDataRow   = DATA_START + bodyRows.length - 1  // 1-based
+  const totalAmountMg = validRows.reduce((s, r) => s + r.amountMg, 0)
+  const totalPct      = formula.targetWeightMg > 0 ? totalAmountMg / formula.targetWeightMg : 0
 
   const data = [
     // R1 — title (idx 0)
-    [`FOGLIO DI PESATA — ${formula.name}`, '', '', '', ''],
-    // R2 — meta (idx 1)
-    [`${formula.type}  ·  Dosi/die: ${formula.dosiAlGiorno || 1}  ·  Data: ${dateStr}`, '', '', '', ''],
+    [`FOGLIO DI PESATA — ${formula.name}`, '', '', ''],
+    // R2 — batch INPUT (idx 1) → cell B2: user writes how many grams to prepare
+    ['BATCH TARGET (g)', 1000, '', ''],
     // R3 — spacer (idx 2)
-    ['', '', '', '', ''],
-    // R4 — dose target INPUT (idx 3) → cell B4
-    ['PESO TARGET DOSE (mg)', formula.targetWeightMg, '', '', ''],
-    // R5 — batch INPUT (idx 4) → cell B5
-    ['QUANTITÀ CAMPIONE (g)', 1000, '', '', ''],
-    // R6 — spacer (idx 5)
-    ['', '', '', '', ''],
-    // R7 — column headers (idx 6)
-    ['MATERIA PRIMA', '% PESO', 'mg/dose', 'PESO DA PESARE (g)', 'Note / Spunta'],
-    // R8+ — ingredient rows (idx 7+)
+    ['', '', '', ''],
+    // R4 — dose formula (idx 3) → cell B4: auto-sums col B
+    ['PESO TARGET DOSE (mg)',
+      { t: 'n', f: `SUM(B${DATA_START}:B${lastDataRow})`, v: formula.targetWeightMg },
+      '', ''],
+    // R5 — column headers (idx 4)
+    ['MATERIA PRIMA', 'mg/dose', '% PESO', 'PESO DA PESARE (g)'],
+    // R6+ — ingredient rows (idx 5+)
     ...bodyRows,
-    // blank separator
-    ['', '', '', '', ''],
-    // total row
+    // blank separator (idx 5 + bodyRows.length)
+    ['', '', '', ''],
+    // total row (idx 6 + bodyRows.length)
     [
       'TOTALE',
-      { t: 'n', f: `SUM(B${DATA_START}:B${lastDataRow})`, v: totalPctDecimal },
-      { t: 'n', f: `SUM(C${DATA_START}:C${lastDataRow})`, v: totalPctDecimal * formula.targetWeightMg },
-      { t: 'n', f: `SUM(D${DATA_START}:D${lastDataRow})`, v: totalPctDecimal * 1000 },
-      '',
+      { t: 'n', f: `SUM(B${DATA_START}:B${lastDataRow})`, v: totalAmountMg },
+      { t: 'n', f: `SUM(C${DATA_START}:C${lastDataRow})`, v: totalPct },
+      { t: 'n', f: `SUM(D${DATA_START}:D${lastDataRow})`, v: totalPct * 1000 },
     ],
     // footer spacers
-    ['', '', '', '', ''],
-    ['', '', '', '', ''],
-    ['', '', '', '', ''],
+    ['', '', '', ''],
+    ['', '', '', ''],
+    ['', '', '', ''],
     // signature row
-    ['Firma Operatore:', '', '', 'Data / Ora:', ''],
-    ['', '', '', '', ''],
-    ['_____________________________', '', '', '______________', ''],
-    ['', '', '', '', ''],
+    ['Firma Operatore:', '', '', 'Data / Ora:'],
+    ['', '', '', ''],
+    ['_____________________________', '', '', '______________'],
+    ['', '', '', ''],
     // notes
-    ['Note di Produzione:', '', '', '', ''],
-    ['', '', '', '', ''],
-    ['____________________________________________', '', '', '', ''],
-    ['____________________________________________', '', '', '', ''],
+    ['Note di Produzione:', '', '', ''],
+    ['', '', '', ''],
+    ['____________________________________________', '', '', ''],
+    ['____________________________________________', '', '', ''],
   ]
 
-  const hdrRowIdx    = 6                    // 0-based (R7)
-  const firstDataIdx = 7                    // 0-based (R8)
-  const lastDataIdx  = 6 + bodyRows.length  // 0-based (inclusive)
-  const totalRowIdx  = 8 + bodyRows.length  // 0-based (after blank separator)
+  const hdrRowIdx    = 4                    // 0-based (R5)
+  const firstDataIdx = 5                    // 0-based (R6)
+  const lastDataIdx  = 4 + bodyRows.length  // 0-based (inclusive)
+  const totalRowIdx  = 6 + bodyRows.length  // 0-based (after blank separator)
 
   const notesLabelR = data.length - 5
   const notesLine1R = data.length - 2
   const notesLine2R = data.length - 1
 
   const merges = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } },  // R1: title
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } },  // R2: meta
-    { s: { r: notesLabelR, c: 0 }, e: { r: notesLabelR, c: 4 } },
-    { s: { r: notesLine1R, c: 0 }, e: { r: notesLine1R, c: 4 } },
-    { s: { r: notesLine2R, c: 0 }, e: { r: notesLine2R, c: 4 } },
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } },  // R1: title
+    { s: { r: notesLabelR, c: 0 }, e: { r: notesLabelR, c: 3 } },
+    { s: { r: notesLine1R, c: 0 }, e: { r: notesLine1R, c: 3 } },
+    { s: { r: notesLine2R, c: 0 }, e: { r: notesLine2R, c: 3 } },
   ]
 
   const rowHeights = {}
   rowHeights[0] = 28  // title
-  rowHeights[1] = 18  // meta
-  rowHeights[3] = 22  // B4 input
-  rowHeights[4] = 22  // B5 input
-  rowHeights[6] = 20  // column headers
-  for (let i = 0; i < bodyRows.length; i++) rowHeights[7 + i] = 18
+  rowHeights[1] = 22  // B2 batch input
+  rowHeights[3] = 22  // B4 dose formula
+  rowHeights[4] = 20  // column headers
+  for (let i = 0; i < bodyRows.length; i++) rowHeights[5 + i] = 18
   rowHeights[totalRowIdx] = 18
 
-  // Input cells that get yellow fill: B4, B5, and col B of every ingredient row
+  // Yellow INPUT cells: B2 (r=1,c=1) + col B of every ingredient row
   const inputCells = [
-    { r: 3, c: 1 },
-    { r: 4, c: 1 },
-    ...Array.from({ length: bodyRows.length }, (_, i) => ({ r: 7 + i, c: 1 })),
+    { r: 1, c: 1 },
+    ...Array.from({ length: bodyRows.length }, (_, i) => ({ r: 5 + i, c: 1 })),
+  ]
+
+  // Percentage format cells: col C of every ingredient row + total C
+  const pctCells = [
+    ...Array.from({ length: bodyRows.length }, (_, i) => ({ r: 5 + i, c: 2 })),
+    { r: totalRowIdx, c: 2 },
   ]
 
   return {
     data,
-    cols: [34, 12, 14, 22, 14],
+    cols: [34, 14, 12, 22],
     merges,
     rowHeights,
     hdrRowIdx,
@@ -313,6 +315,7 @@ function dataFogliodiPesata(rows, rmMap, formula) {
     lastDataIdx,
     totalRowIdx,
     inputCells,
+    pctCells,
   }
 }
 
@@ -355,20 +358,20 @@ export async function exportFormulaToExcel(formula, computed, rawMaterials, pack
   }
 
   // Lab sheet: full styling — borders, fills, number formats, merges, row heights
-  function makeLabSheet(sheetName, { data, cols, merges, rowHeights, hdrRowIdx, firstDataIdx, lastDataIdx, totalRowIdx, inputCells }) {
+  function makeLabSheet(sheetName, { data, cols, merges, rowHeights, hdrRowIdx, firstDataIdx, lastDataIdx, totalRowIdx, inputCells, pctCells }) {
     const ws = wb.addWorksheet(sheetName, {
       views:     [{ showGridLines: true }],
       pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
     })
     ws.pageMargins = { top: 0.98, bottom: 0.98, left: 0.75, right: 0.75, header: 0.3, footer: 0.3 }
 
-    // Populate rows (convert SheetJS formula objects)
+    // Populate rows (convert SheetJS-format formula objects to exceljs {formula, result})
     data.forEach(row => ws.addRow(row.map(toEjsValue)))
 
     // Column widths
     cols.forEach((w, i) => { ws.getColumn(i + 1).width = w })
 
-    // Merges: SheetJS 0-based {r,c} → exceljs 1-based (row, col)
+    // Merges: 0-based {r,c} → exceljs 1-based (row, col)
     if (merges) {
       merges.forEach(({ s, e }) => {
         try { ws.mergeCells(s.r + 1, s.c + 1, e.r + 1, e.c + 1) } catch (_) { /* overlapping merge */ }
@@ -382,7 +385,7 @@ export async function exportFormulaToExcel(formula, computed, rawMaterials, pack
       })
     }
 
-    // Yellow fill for editable input cells (B4, B5, col B of every ingredient row)
+    // Yellow fill for editable INPUT cells (B2 batch target + col B ingredient rows)
     const YELLOW = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } }
     if (inputCells) {
       inputCells.forEach(({ r, c }) => {
@@ -390,21 +393,20 @@ export async function exportFormulaToExcel(formula, computed, rawMaterials, pack
       })
     }
 
-    // Percentage format for col B: data rows + total row
-    if (firstDataIdx != null) {
-      for (let row = firstDataIdx; row <= lastDataIdx; row++) {
-        ws.getCell(row + 1, 2).numFmt = '0.00%'
-      }
-      if (totalRowIdx != null) ws.getCell(totalRowIdx + 1, 2).numFmt = '0.00%'
+    // Percentage format for specified cells (col C ingredient rows + total C)
+    if (pctCells) {
+      pctCells.forEach(({ r, c }) => {
+        ws.getCell(r + 1, c + 1).numFmt = '0.00%'
+      })
     }
 
-    // Per-cell borders — every cell in the table gets ALL FOUR sides set explicitly.
-    // This is required because Excel suppresses its default gridlines on any cell
-    // that has a background fill; only explicitly-set borders remain visible.
+    // Per-cell borders — every cell in the table (header → total, all columns) gets
+    // ALL FOUR sides set explicitly. Excel suppresses default gridlines on any cell
+    // that has a background fill; only explicitly-declared borders remain visible.
     if (hdrRowIdx != null && totalRowIdx != null) {
       const MEDIUM   = { style: 'medium', color: { argb: 'FF000000' } }
       const THIN     = { style: 'thin',   color: { argb: 'FFA0A0A0' } }
-      const NUM_COLS = cols.length  // 5: name | % | mg/dose | g | notes
+      const NUM_COLS = cols.length  // 4: name | mg/dose | % | g
 
       const tableRows = [
         hdrRowIdx,
@@ -413,20 +415,16 @@ export async function exportFormulaToExcel(formula, computed, rawMaterials, pack
       ]
 
       tableRows.forEach(row => {
-        const isHeader    = row === hdrRowIdx
-        const isFirstData = row === firstDataIdx
-        const isLastData  = row === lastDataIdx
-        const isTotalRow  = row === totalRowIdx
+        const isHeader   = row === hdrRowIdx
+        const isTotalRow = row === totalRowIdx
 
-        // MEDIUM on horizontal sides that are outer edges or separator lines:
-        //   top of table, below-header line, above-total line, bottom of table
-        const topMedium = isHeader || isFirstData || isTotalRow
-        const botMedium = isHeader || isLastData  || isTotalRow
+        // MEDIUM on the header and total rows (top+bottom); thin everywhere else
+        const hMedium = isHeader || isTotalRow
 
         for (let col = 0; col < NUM_COLS; col++) {
           ws.getCell(row + 1, col + 1).border = {
-            top:    topMedium          ? MEDIUM : THIN,
-            bottom: botMedium          ? MEDIUM : THIN,
+            top:    hMedium            ? MEDIUM : THIN,
+            bottom: hMedium            ? MEDIUM : THIN,
             left:   col === 0          ? MEDIUM : THIN,
             right:  col === NUM_COLS-1 ? MEDIUM : THIN,
           }
