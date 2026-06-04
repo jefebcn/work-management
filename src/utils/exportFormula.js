@@ -196,32 +196,37 @@ function dataFogliodiPesata(rows, rmMap, formula) {
   const sorted    = [...rows].sort((a, b) => b.amountMg - a.amountMg)
   const validRows = sorted.filter(r => rmMap[r.rawMaterialId])
 
-  // Layout (1-based Excel rows / 0-based indices):
-  //  R1  (0) — Title (merged A:D)
-  //  R2  (1) — "BATCH TARGET (g)"       | B2 ← INPUT yellow  (user writes batch size)
+  // Layout (1-based / 0-based):
+  //  R1  (0) — Title (merged A:E)
+  //  R2  (1) — "BATCH TARGET (g)"      | B2 ← INPUT yellow
   //  R3  (2) — spacer
-  //  R4  (3) — "PESO TARGET DOSE (mg)"  | B4 ← FORMULA =SUM(B6:B{lastDataRow})
-  //  R5  (4) — Column headers: MATERIA PRIMA | mg/dose | % PESO | PESO DA PESARE (g)
-  //  R6+ (5+)— Ingredient rows:
-  //              A = name
-  //              B = amountMg   ← INPUT yellow (user can override)
-  //              C = =B6/$B$4   ← % of total dose, formatted as 0.00%
-  //              D = =C6*$B$2   ← grams to weigh = % × batch
+  //  R4  (3) — "PESO TARGET DOSE (mg)" | B4 ← INPUT yellow (pre-filled, operator can change)
+  //  R5  (4) — Headers: MATERIA PRIMA | TIPO INPUT | mg x dose | % PESO | PESO DA PESARE (g)
+  //  R6+ (5+)— 5-column ingredient rows:
+  //              A  name (fixed text)
+  //              B  TIPO INPUT — dropdown "mg" or "%" (yellow), default "mg"
+  //              C  mg x dose  — yellow INPUT, pre-filled with amountMg
+  //              D  % PESO     — yellow INPUT, pre-filled as decimal (0.60 → 60.00%)
+  //              E  PESO DA PESARE — FORMULA =IF(B="mg", C/$B$4*$B$2, D*$B$2)
   //  blank separator
-  //  Total row: A=TOTALE, B=SUM(B), C=SUM(C), D=SUM(D)
-  const DATA_START = 6  // 1-based Excel row for first ingredient
+  //  Total row
+  //
+  // No circular references: C and D are plain number inputs; E reads whichever
+  // column the operator used (governed by dropdown in B). Changing B2 or B4
+  // recalculates all E values in real time.
 
-  const dateStr = new Date().toLocaleDateString('it-IT')
+  const DATA_START = 6  // 1-based Excel row for first ingredient
 
   const bodyRows = validRows.map((row, i) => {
     const rm       = rmMap[row.rawMaterialId]
     const excelRow = DATA_START + i
-    const pct      = row.amountMg / formula.targetWeightMg  // pre-calc for result cache
+    const pct      = formula.targetWeightMg > 0 ? row.amountMg / formula.targetWeightMg : 0
     return [
       rm.name,
-      row.amountMg,   // INPUT: fixed mg value from formula, user can override
-      { t: 'n', f: `B${excelRow}/$B$4`, v: pct },
-      { t: 'n', f: `C${excelRow}*$B$2`, v: pct * 1000 },
+      'mg',          // B: TIPO INPUT — default, user changes to "%" via dropdown
+      row.amountMg,  // C: mg x dose  — raw INPUT (yellow)
+      pct,           // D: % PESO     — raw INPUT (yellow, format 0.00%)
+      { t: 'n', f: `IF(B${excelRow}="mg",C${excelRow}/$B$4*$B$2,D${excelRow}*$B$2)`, v: pct * 1000 },
     ]
   })
 
@@ -231,42 +236,40 @@ function dataFogliodiPesata(rows, rmMap, formula) {
 
   const data = [
     // R1 — title (idx 0)
-    [`FOGLIO DI PESATA — ${formula.name}`, '', '', ''],
-    // R2 — batch INPUT (idx 1) → cell B2: user writes how many grams to prepare
-    ['BATCH TARGET (g)', 1000, '', ''],
+    [`FOGLIO DI PESATA — ${formula.name}`, '', '', '', ''],
+    // R2 — batch INPUT (idx 1) → cell B2
+    ['BATCH TARGET (g)', 1000, '', '', ''],
     // R3 — spacer (idx 2)
-    ['', '', '', ''],
-    // R4 — dose formula (idx 3) → cell B4: auto-sums col B
-    ['PESO TARGET DOSE (mg)',
-      { t: 'n', f: `SUM(B${DATA_START}:B${lastDataRow})`, v: formula.targetWeightMg },
-      '', ''],
+    ['', '', '', '', ''],
+    // R4 — dose INPUT (idx 3) → cell B4 (pre-filled, operator can override)
+    ['PESO TARGET DOSE (mg)', formula.targetWeightMg, '', '', ''],
     // R5 — column headers (idx 4)
-    ['MATERIA PRIMA', 'mg/dose', '% PESO', 'PESO DA PESARE (g)'],
+    ['MATERIA PRIMA', 'TIPO INPUT', 'mg x dose', '% PESO', 'PESO DA PESARE (g)'],
     // R6+ — ingredient rows (idx 5+)
     ...bodyRows,
     // blank separator (idx 5 + bodyRows.length)
-    ['', '', '', ''],
+    ['', '', '', '', ''],
     // total row (idx 6 + bodyRows.length)
     [
-      'TOTALE',
-      { t: 'n', f: `SUM(B${DATA_START}:B${lastDataRow})`, v: totalAmountMg },
-      { t: 'n', f: `SUM(C${DATA_START}:C${lastDataRow})`, v: totalPct },
-      { t: 'n', f: `SUM(D${DATA_START}:D${lastDataRow})`, v: totalPct * 1000 },
+      'TOTALE', '',
+      { t: 'n', f: `SUM(C${DATA_START}:C${lastDataRow})`, v: totalAmountMg },
+      { t: 'n', f: `SUM(D${DATA_START}:D${lastDataRow})`, v: totalPct },
+      { t: 'n', f: `SUM(E${DATA_START}:E${lastDataRow})`, v: totalPct * 1000 },
     ],
     // footer spacers
-    ['', '', '', ''],
-    ['', '', '', ''],
-    ['', '', '', ''],
+    ['', '', '', '', ''],
+    ['', '', '', '', ''],
+    ['', '', '', '', ''],
     // signature row
-    ['Firma Operatore:', '', '', 'Data / Ora:'],
-    ['', '', '', ''],
-    ['_____________________________', '', '', '______________'],
-    ['', '', '', ''],
+    ['Firma Operatore:', '', '', 'Data / Ora:', ''],
+    ['', '', '', '', ''],
+    ['_____________________________', '', '', '______________', ''],
+    ['', '', '', '', ''],
     // notes
-    ['Note di Produzione:', '', '', ''],
-    ['', '', '', ''],
-    ['____________________________________________', '', '', ''],
-    ['____________________________________________', '', '', ''],
+    ['Note di Produzione:', '', '', '', ''],
+    ['', '', '', '', ''],
+    ['____________________________________________', '', '', '', ''],
+    ['____________________________________________', '', '', '', ''],
   ]
 
   const hdrRowIdx    = 4                    // 0-based (R5)
@@ -279,35 +282,41 @@ function dataFogliodiPesata(rows, rmMap, formula) {
   const notesLine2R = data.length - 1
 
   const merges = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } },  // R1: title
-    { s: { r: notesLabelR, c: 0 }, e: { r: notesLabelR, c: 3 } },
-    { s: { r: notesLine1R, c: 0 }, e: { r: notesLine1R, c: 3 } },
-    { s: { r: notesLine2R, c: 0 }, e: { r: notesLine2R, c: 3 } },
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } },              // R1: title A:E
+    { s: { r: notesLabelR, c: 0 }, e: { r: notesLabelR, c: 4 } },
+    { s: { r: notesLine1R, c: 0 }, e: { r: notesLine1R, c: 4 } },
+    { s: { r: notesLine2R, c: 0 }, e: { r: notesLine2R, c: 4 } },
   ]
 
   const rowHeights = {}
   rowHeights[0] = 28  // title
   rowHeights[1] = 22  // B2 batch input
-  rowHeights[3] = 22  // B4 dose formula
+  rowHeights[3] = 22  // B4 dose input
   rowHeights[4] = 20  // column headers
   for (let i = 0; i < bodyRows.length; i++) rowHeights[5 + i] = 18
   rowHeights[totalRowIdx] = 18
 
-  // Yellow INPUT cells: B2 (r=1,c=1) + col B of every ingredient row
+  // Yellow INPUT cells: B2, B4, and cols B+C+D of every ingredient row
   const inputCells = [
-    { r: 1, c: 1 },
-    ...Array.from({ length: bodyRows.length }, (_, i) => ({ r: 5 + i, c: 1 })),
+    { r: 1, c: 1 },  // B2
+    { r: 3, c: 1 },  // B4
+    ...Array.from({ length: bodyRows.length }, (_, i) => ({ r: 5 + i, c: 1 })),  // col B tipo
+    ...Array.from({ length: bodyRows.length }, (_, i) => ({ r: 5 + i, c: 2 })),  // col C mg
+    ...Array.from({ length: bodyRows.length }, (_, i) => ({ r: 5 + i, c: 3 })),  // col D %
   ]
 
-  // Percentage format cells: col C of every ingredient row + total C
+  // 0.00% format: col D ingredient rows + total D
   const pctCells = [
-    ...Array.from({ length: bodyRows.length }, (_, i) => ({ r: 5 + i, c: 2 })),
-    { r: totalRowIdx, c: 2 },
+    ...Array.from({ length: bodyRows.length }, (_, i) => ({ r: 5 + i, c: 3 })),
+    { r: totalRowIdx, c: 3 },
   ]
+
+  // Dropdown "mg,%" on col B of every ingredient row
+  const dropdownCells = Array.from({ length: bodyRows.length }, (_, i) => ({ r: 5 + i, c: 1 }))
 
   return {
     data,
-    cols: [34, 14, 12, 22],
+    cols: [34, 14, 14, 10, 20],
     merges,
     rowHeights,
     hdrRowIdx,
@@ -316,6 +325,7 @@ function dataFogliodiPesata(rows, rmMap, formula) {
     totalRowIdx,
     inputCells,
     pctCells,
+    dropdownCells,
   }
 }
 
@@ -358,7 +368,7 @@ export async function exportFormulaToExcel(formula, computed, rawMaterials, pack
   }
 
   // Lab sheet: full styling — borders, fills, number formats, merges, row heights
-  function makeLabSheet(sheetName, { data, cols, merges, rowHeights, hdrRowIdx, firstDataIdx, lastDataIdx, totalRowIdx, inputCells, pctCells }) {
+  function makeLabSheet(sheetName, { data, cols, merges, rowHeights, hdrRowIdx, firstDataIdx, lastDataIdx, totalRowIdx, inputCells, pctCells, dropdownCells }) {
     const ws = wb.addWorksheet(sheetName, {
       views:     [{ showGridLines: true }],
       pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
@@ -397,6 +407,19 @@ export async function exportFormulaToExcel(formula, computed, rawMaterials, pack
     if (pctCells) {
       pctCells.forEach(({ r, c }) => {
         ws.getCell(r + 1, c + 1).numFmt = '0.00%'
+      })
+    }
+
+    // Dropdown data validation for TIPO INPUT column (mg / %)
+    if (dropdownCells) {
+      dropdownCells.forEach(({ r, c }) => {
+        const colLetter = String.fromCharCode(65 + c)
+        const cellRef   = `${colLetter}${r + 1}`
+        ws.dataValidations.add(cellRef, {
+          type:       'list',
+          allowBlank: false,
+          formulae:   ['"mg,%"'],
+        })
       })
     }
 
